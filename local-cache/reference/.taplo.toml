@@ -1,0 +1,14 @@
+include = ["**/Cargo.toml"]
+exclude = ["licenses/**"]
+
+[[rule]]
+include = ["**/Cargo.toml"]
+
+[rule.schema]
+url = "https://json.schemastore.org/cargo.json"
+
+[rule.formatting]
+column_width = 90
+reorder_arrays = true
+reorder_keys = true
+trailing_newline = true

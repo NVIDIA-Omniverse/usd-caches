@@ -1,0 +1,19 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{- if and .Values.metrics.prometheus.enabled .Values.metrics.prometheus.podMonitoring.enabled }}
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: {{ include "chart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: cache-metrics
+      interval: {{ .Values.metrics.prometheus.serviceMonitor.interval }}
+      path: {{ .Values.metrics.prometheus.serviceMonitor.path }}
+{{- end }}

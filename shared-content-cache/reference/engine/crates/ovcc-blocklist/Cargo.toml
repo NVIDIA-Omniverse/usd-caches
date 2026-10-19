@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-blocklist"
+description = "Azure Put Block List parsing and block-blob assembly for OVCC write-through."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+[[bench]]
+name = "blocklist"
+harness = false

@@ -1,0 +1,114 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96.0"
+license = "Apache-2.0"
+# Workspace crates ship inside the engine image and are never published to a
+# package registry.
+publish = false
+
+[workspace.dependencies]
+async-trait = "0.1.89"
+bytes = "1.12.1"
+criterion = "0.8.2"
+dashmap = "6.2.1"
+figment = "0.10.19"
+futures-executor = "0.3.32"
+http = "1.4.2"
+http-body = "1.0.1"
+http-body-util = "0.1.3"
+httpdate = "1.0.3"
+hyper = "1.10.1"
+hyper-rustls = { version = "0.27.9", default-features = false }
+hyper-util = "0.1.20"
+ktls = "6.0.2"
+loom = "0.7.2"
+nix = "0.31.3"
+opentelemetry = "0.32.0"
+opentelemetry-http = { version = "0.32.0", default-features = false }
+opentelemetry-otlp = { version = "0.32.0", default-features = false }
+opentelemetry_sdk = "0.32.1"
+opentelemetry-semantic-conventions = "0.32.1"
+papaya = "0.2.5"
+parking_lot = "0.12.5"
+postcard = { version = "1", default-features = false }
+proptest = "1.9.0"
+prost = "0.14.4"
+prost-build = "0.14.4"
+protoc-bin-vendored = "3.2.0"
+rand = "0.9.4"
+# Sign with the aws-lc-rs provider rustls already links instead of rcgen's
+# default ring, so the binary carries one crypto library.
+rcgen = { version = "0.14.8", default-features = false, features = ["aws_lc_rs"] }
+redb = "4.3.0"
+regex = "1.12.4"
+rustls = "0.23.40"
+scc = "3.8.8"
+serde = "1.0.229"
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+socket2 = "0.6.4"
+tempfile = "3.27.0"
+tikv-jemallocator = "0.7.0"
+time = "0.3.51"
+tokio = "1.52.3"
+tokio-rustls = "0.26.4"
+tokio-stream = "0.1.19"
+tonic = { version = "0.14.6", default-features = false }
+tonic-prost = "0.14.6"
+tonic-prost-build = "0.14.6"
+tower = "0.5.3"
+tower-http = "0.7.0"
+tower-service = "0.3.3"
+tracing = "0.1.44"
+tracing-opentelemetry = "0.33.0"
+tracing-subscriber = "0.3.23"
+url = "2.5.8"
+webpki-roots = "1.0.8"
+windows-sys = "0.61.2"
+
+[profile.release]
+lto = "thin"
+# Keeps unwind rather than `panic = "abort"`. OVCC is a
+# request-serving proxy: a panic in one request task must not abort the
+# whole pod and kill every in-flight transfer.
+
+# The shipped binary. Whole-program optimization and a stripped symbol table
+# cut its size by about 40%, and the cost of the slower link lands only on the
+# image build, not on tests, benches, or the fault-injection binaries. Panic
+# messages keep their file and line, but backtrace frames lose function names.
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+
+[profile.test]
+opt-level = 1
+debug = "line-tables-only"
+
+[workspace.lints.rust]
+future_incompatible = { level = "warn", priority = -1 }
+nonstandard_style = { level = "deny", priority = -1 }
+unused_imports = "warn"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+redundant_clone = "deny"
+clone_on_copy = "deny"
+needless_collect = "warn"
+large_enum_variant = "warn"
+large_futures = "deny"
+

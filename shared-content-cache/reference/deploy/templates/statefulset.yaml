@@ -1,0 +1,301 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{/* Aborts upgrade if any existing PVC is smaller than sizeGi, because
+  minFreeSizePercentage would be computed against the configured size
+  instead of the actual volume capacity. No-op during helm template. */}}
+{{- $fullName := include "chart.compatFullname" . }}
+{{- $persistenceMode := include "func.persistenceMode" . }}
+{{- if eq $persistenceMode "pvc" }}
+  {{- range $vol := .Values.persistence.volumes }}
+    {{- if eq (include "func.shouldMaterializeCacheVolume" (dict "root" $ "volume" $vol)) "true" }}
+    {{- range $i := until (int $.Values.replicaCount) }}
+      {{- $pvcName := printf "%s-%s-%d" $vol.name $fullName $i }}
+      {{- $pvc := lookup "v1" "PersistentVolumeClaim" $.Release.Namespace $pvcName }}
+      {{- if $pvc }}
+        {{- $storage := $pvc.spec.resources.requests.storage | toString }}
+        {{- if hasSuffix "Gi" $storage }}
+          {{- $currentGi := int (trimSuffix "Gi" $storage) }}
+          {{- if lt $currentGi (int $vol.sizeGi) }}
+            {{- fail (printf "PVC %q in namespace %q has %dGi but persistence.volumes[name=%s].sizeGi requires %d — delete the PVC and let it be recreated, or set sizeGi to match the existing volume" $pvcName $.Release.Namespace $currentGi $vol.name (int $vol.sizeGi)) }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "chart.compatFullname" . }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  # Connects the StatefulSet to the headless service for stable network IDs.
+  serviceName: {{ include "chart.compatFullname" . }}{{ if .Values.service.headless.enabled }}-headless{{ end }}
+  template:
+    metadata:
+      # Checksums of runtime ConfigMaps force a StatefulSet rolling update on config changes,
+      # bypassing the lack of auto-refresh for subPath mounts. Dashboard config is excluded
+      # to prevent unnecessary pod restarts.
+      annotations:
+        checksum/config-nginx: {{ include (print $.Template.BasePath "/configmap-nginx.yaml") . | sha256sum }}
+        checksum/config-lua: {{ include (print $.Template.BasePath "/configmap-lua.yaml") . | sha256sum }}
+        checksum/config-runtime: {{ include (print $.Template.BasePath "/configmap-runtime.yaml") . | sha256sum }}
+        checksum/config-engine: {{ include (print $.Template.BasePath "/configmap-engine.yaml") . | sha256sum }}
+      labels:
+        {{- include "chart.selectorLabels" . | nindent 8 }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # Reference the secret needed to pull images from the container registry.
+      imagePullSecrets:
+        {{- with .Values.image.pullSecrets }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- range $key, $value := . }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "chart.compatName" . }}
+          image: "{{- if .Values.image.registry -}}{{ .Values.image.registry }}/{{- end -}}{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- if .Values.peer.enabled }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          {{- end }}
+          ports:
+            # Define the container port(s) - align with NGINX config.
+            # Expose this port to allow for liveness and readiness probes.
+            - name: healthz
+              containerPort: 13129
+              protocol: TCP
+            - name: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+              containerPort: {{ .Values.service.cache.containerPort }}
+              protocol: TCP
+            - name: nucleus
+              containerPort: {{ .Values.service.nucleus.containerPort }}
+              protocol: TCP
+            - name: cache-metrics
+              containerPort: 9145
+              protocol: TCP
+            {{- if .Values.peer.enabled }}
+            - name: peer
+              containerPort: {{ .Values.service.peer.containerPort }}
+              protocol: TCP
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+          # Define where volumes are mounted inside the container.
+          volumeMounts:
+            {{- if .Values.tls.enabled }}
+            # Mount the TLS secret
+            - name: tls-secret-volume
+              mountPath: "/etc/nginx/ssl"
+              readOnly: true
+            {{- end }}
+            # Private Rust runtime config. The OpenResty image ignores this
+            # read-only directory; the Rust image reads values.yaml.
+            - name: ovcc-engine-config
+              mountPath: "/etc/ovcc"
+              readOnly: true
+            # Keeps process-local scratch writes off the container root filesystem.
+            - name: runtime-tmp
+              mountPath: "/tmp"
+            # Mount the NGINX configuration files.
+            - name: nginx-config-volume
+              mountPath: "/etc/nginx/nginx.conf"
+              subPath: "nginx.conf" # ConfigMap key.
+              readOnly: true
+            - name: logging-formats-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/logging-formats.conf"
+              subPath: "logging-formats.conf"
+              readOnly: true
+            - name: cache-bypass-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/cache-bypass.conf"
+              subPath: "cache-bypass.conf"
+              readOnly: true
+            - name: cache-generation-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/cache-generation.conf"
+              subPath: "cache-generation.conf"
+              readOnly: true
+            - name: cacheability-overrides-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/cacheability-overrides.conf"
+              subPath: "cacheability-overrides.conf"
+              readOnly: true
+            - name: mutation-detection-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/mutation-detection.conf"
+              subPath: "mutation-detection.conf"
+              readOnly: true
+            - name: azure-server-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/azure-server.conf"
+              subPath: "azure-server.conf"
+              readOnly: true
+            - name: s3-server-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/s3-server.conf"
+              subPath: "s3-server.conf"
+              readOnly: true
+            - name: gcs-server-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/gcs-server.conf"
+              subPath: "gcs-server.conf"
+              readOnly: true
+            - name: nucleus-server-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/nucleus-server.conf"
+              subPath: "nucleus-server.conf"
+              readOnly: true
+            - name: self-server-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/self-server.conf"
+              subPath: "self-server.conf"
+              readOnly: true
+            - name: passthrough-server-config-volume
+              mountPath: "/etc/nginx/conf.d/sites/passthrough-server.conf"
+              subPath: "passthrough-server.conf"
+              readOnly: true
+            - name: nginx-lua-configmap
+              mountPath: "/etc/nginx/conf.d/lua-runtime/"
+              readOnly: true
+
+            # Mount the cache volumes.
+            {{- range .Values.persistence.volumes }}
+            {{- if eq (include "func.shouldMaterializeCacheVolume" (dict "root" $ "volume" .)) "true" }}
+            - name: {{ .name }}
+              mountPath: {{ .path | quote }}
+            {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      # Define the volumes used in volumeMounts.
+      volumes:
+        {{- if .Values.tls.enabled }}
+        # Volume for the TLS secret.
+        - name: tls-secret-volume
+          secret:
+            secretName: {{ include "func.effectiveTlsSecretName" . }}
+        {{- end }}
+        # Private Rust runtime config; values.yaml appears at
+        # /etc/ovcc/values.yaml without changing the image entrypoint.
+        - name: ovcc-engine-config
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-config
+            items:
+              - key: values.yaml
+                path: values.yaml
+        # Delegates scratch capacity to Kubernetes ephemeral-storage policy.
+        - name: runtime-tmp
+          emptyDir: {}
+        # Volume for the NGINX config ConfigMap.
+        # Note: Lua files are baked into the image, don't need mounting here.
+        - name: nginx-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: logging-formats-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: cache-bypass-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: cache-generation-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: cacheability-overrides-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: mutation-detection-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: azure-server-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: s3-server-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: nucleus-server-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: gcs-server-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: self-server-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        - name: passthrough-server-config-volume
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-nginx-conf
+        # Lua scripts loaded from ConfigMap for hot-reload.
+        - name: nginx-lua-configmap
+          configMap:
+            name: {{ include "chart.compatFullname" . }}-lua
+            items:
+              {{- range $value := .Values.nginx.lua.files }}
+              {{- if $.Files.Glob (printf "files/lua/%s" $value) }}
+              - key: {{ regexReplaceAll "\\W+" $value "_" }}
+                path: {{ $value }}
+              {{- end }}
+              {{- end }}
+              {{- if and .Values.tls.enabled .Values.tls.autoReloadSecret }}
+              - key: lua_cert_reload_lua
+                path: lua-cert-reload.lua
+              {{- end }}
+        {{- if eq $persistenceMode "ephemeral" }}
+        # Ephemeral cache volumes. Data is lost when pods or nodes are recreated.
+        {{- range .Values.persistence.volumes }}
+        {{- if eq (include "func.shouldMaterializeCacheVolume" (dict "root" $ "volume" .)) "true" }}
+        - name: {{ .name }}
+          emptyDir:
+            sizeLimit: {{ printf "%dGi" (int .sizeGi) }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+
+  {{- if eq $persistenceMode "pvc" }}
+  # Define persistent volume claims templates dynamically from the list in values*.yaml.
+  volumeClaimTemplates:
+    {{- range .Values.persistence.volumes }}
+    {{- if eq (include "func.shouldMaterializeCacheVolume" (dict "root" $ "volume" .)) "true" }}
+    - metadata:
+        name: {{ .name }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ printf "%dGi" (int .sizeGi) }}
+        # Use default storage class if empty, or specify one.
+        {{- if or $.Values.persistence.storageClassName .storageClassName }}
+        storageClassName: {{ .storageClassName | default $.Values.persistence.storageClassName }}
+        {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- end }}

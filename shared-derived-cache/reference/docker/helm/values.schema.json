@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "ovdc Helm chart values",
+  "description": "Values for the ovdc chart. The `settings` block mirrors the application's config.toml schema (rust/ovdc/src/config.toml) and is rendered into the ConfigMap verbatim; keys there must match what the binary deserializes. Objects whose key set the chart owns are closed (`additionalProperties: false`) so a key this chart no longer reads fails the render instead of being silently ignored -- the same posture the binary takes with `deny_unknown_fields`. Objects passed through to Kubernetes or RocksDB verbatim stay open.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "description": "Left open: parent charts inject their own keys here.",
+      "type": "object",
+      "properties": {
+        "additionalLabels": {
+          "description": "Labels added to every object the chart creates.",
+          "type": ["object", "null"],
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "repository", "pullPolicy"],
+      "properties": {
+        "registry": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] },
+        "pullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": { "name": { "type": "string" } }
+          }
+        },
+        "tag": { "type": "string" },
+        "overrideTag": {
+          "description": "When false the chart's appVersion is used as the tag.",
+          "type": "boolean"
+        }
+      }
+    },
+
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "replicas": { "type": "integer", "minimum": 0 },
+
+    "nodeSelector": { "type": "object" },
+    "tolerations": { "type": "array" },
+    "selfAntiAffinity": {
+      "description": "Merged into `affinity`; values set there win on conflict.",
+      "type": "boolean"
+    },
+    "affinity": { "type": "object" },
+    "podAnnotations": { "type": "object" },
+    "podSecurityContext": { "type": "object" },
+    "securityContext": { "type": "object" },
+    "resources": { "type": "object" },
+
+    "rustLog": { "type": "string" },
+    "rustBacktrace": { "type": "string" },
+    "debug": {
+      "description": "Replaces the main container's command with a sleep and adds a debug pod. Never enable in production.",
+      "type": "boolean"
+    },
+
+    "presets": {
+      "description": "Sizing presets that override fixed settings.engine values at render time. See templates/_helpers.tpl (ovdc.cpuPreset / ovdc.ramPreset) for what each value maps to.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": { "type": ["integer", "null"], "enum": [null, 1, 2, 3, 4, 5, 6, 7, 8] },
+        "ram": {
+          "description": "Whole GB from 4GB to 96GB, e.g. \"10GB\".",
+          "type": ["string", "null"],
+          "pattern": "^([4-9]|[1-8][0-9]|9[0-6])GB$"
+        }
+      }
+    },
+
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "volume": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {
+              "description": "When false the database is ephemeral and lost on every pod restart.",
+              "type": "boolean"
+            },
+            "size": {
+              "description": "PVC size as a Kubernetes quantity, e.g. 300Gi.",
+              "type": ["string", "integer"]
+            },
+            "storageClassName": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Service ports are not configurable here; they derive from settings.grpc.port and settings.telemetry.prometheusMetricsPort.",
+      "properties": {
+        "annotations": { "type": "object" },
+        "loadBalancer": { "type": "boolean" },
+        "loadBalancerSourceRanges": { "type": "array", "items": { "type": "string" } },
+        "loadBalancerIP": { "type": "string" }
+      }
+    },
+
+    "prometheusAnnotation": { "type": "boolean" },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "scheme": { "enum": ["http", "https"] }
+      }
+    },
+
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logFormat", "logLevel", "logFilter", "store", "engine", "garbageCollection",
+        "telemetry", "otel", "otelTraces", "otelLogs", "otelMetrics",
+        "grpc", "grpcTls", "grpcJwt"
+      ],
+      "properties": {
+        "logFormat": { "enum": ["json", "human", "human_no_color"] },
+        "logLevel": { "enum": ["error", "warn", "info", "debug", "trace", "off"] },
+        "logFilter": { "type": "string" },
+
+        "store": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maxSize", "blobCutoff", "blobChunkSize", "mode"],
+          "properties": {
+            "maxSize": {
+              "description": "Byte size, or \"AUTO\" to derive from storage.volume.size less min(20%, 100GB).",
+              "oneOf": [
+                { "type": "string", "pattern": "^([Aa][Uu][Tt][Oo]|[0-9]+([KMGT]i?|[KMGT]B|B)?)$" },
+                { "type": "integer", "minimum": 0 }
+              ]
+            },
+            "blobCutoff": { "type": ["integer", "string"] },
+            "blobChunkSize": { "type": ["integer", "string"] },
+            "mode": { "enum": ["legacy", "legacy_and_discrete", "log"] }
+          }
+        },
+
+        "engine": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cacheSize", "blockCacheSize", "db", "cf"],
+          "properties": {
+            "useWriteBufferManager": { "type": "boolean" },
+            "cacheSize": { "type": ["string", "integer"] },
+            "blockCacheSize": { "type": ["string", "integer"] },
+            "increaseParallelism": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "threadsHigh": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "threadsLow": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "db": {
+              "description": "Passed verbatim to RocksDB. Arbitrary options are allowed.",
+              "type": "object"
+            },
+            "cf": { "type": "object" },
+            "block": { "type": "object" },
+            "blobsCf": { "type": "object" },
+            "blobsBlock": { "type": "object" }
+          }
+        },
+
+        "garbageCollection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minFreeCapacity", "deleteKeyspaceQuantile", "cooldownSecs"],
+          "properties": {
+            "minFreeCapacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "deleteKeyspaceQuantile": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "cooldownSecs": { "type": "integer", "minimum": 0 }
+          }
+        },
+
+        "telemetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["prometheusMetricsExposition", "prometheusMetricsPort"],
+          "properties": {
+            "prometheusMetricsExposition": { "type": "boolean" },
+            "prometheusMetricsPort": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        },
+
+        "otel": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "useEnvVars"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "useEnvVars": { "type": "boolean" }
+          }
+        },
+
+        "otelTraces": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exporter", "otlp", "processor", "attributeValueLengthLimit",
+            "attributeCountLimit", "eventCountLimit", "linkCountLimit",
+            "eventAttributeCountLimit", "linkAttributeCountLimit",
+            "samplerArg", "sampler", "level", "filter"
+          ],
+          "properties": {
+            "exporter": { "$ref": "#/definitions/exporterKind" },
+            "otlp": { "$ref": "#/definitions/otlp" },
+            "processor": { "$ref": "#/definitions/batchProcessor" },
+            "attributeValueLengthLimit": { "type": ["integer", "string"] },
+            "attributeCountLimit": { "type": "integer", "minimum": 0 },
+            "eventCountLimit": { "type": "integer", "minimum": 0 },
+            "linkCountLimit": { "type": "integer", "minimum": 0 },
+            "eventAttributeCountLimit": { "type": "integer", "minimum": 0 },
+            "linkAttributeCountLimit": { "type": "integer", "minimum": 0 },
+            "samplerArg": { "type": "number", "minimum": 0, "maximum": 1 },
+            "sampler": { "type": "string" },
+            "level": { "enum": ["error", "warn", "info", "debug", "trace", "off"] },
+            "filter": { "type": "string" }
+          }
+        },
+
+        "otelLogs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exporter", "otlp", "processor", "attributeValueLengthLimit",
+            "attributeCountLimit", "level", "filter"
+          ],
+          "properties": {
+            "exporter": { "$ref": "#/definitions/exporterKind" },
+            "otlp": { "$ref": "#/definitions/otlp" },
+            "processor": { "$ref": "#/definitions/batchProcessor" },
+            "attributeValueLengthLimit": { "type": ["integer", "string"] },
+            "attributeCountLimit": { "type": "integer", "minimum": 0 },
+            "level": { "enum": ["error", "warn", "info", "debug", "trace", "off"] },
+            "filter": { "type": "string" }
+          }
+        },
+
+        "otelMetrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["exporter", "otlp", "processor"],
+          "properties": {
+            "exporter": { "$ref": "#/definitions/exporterKind" },
+            "otlp": { "$ref": "#/definitions/otlp" },
+            "processor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["interval"],
+              "properties": { "interval": { "type": ["string", "integer"] } }
+            },
+            "filter": { "type": "string" }
+          }
+        },
+
+        "grpc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["port", "timeout"],
+          "properties": {
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "initialStreamWindowSize": { "type": ["string", "integer"] },
+            "initialConnectionWindowSize": { "type": ["string", "integer"] },
+            "connectionConcurrencyLimit": { "type": "integer", "minimum": 1 },
+            "maxConcurrentStreams": { "type": "integer", "minimum": 0 },
+            "maxFrameSize": { "type": "integer", "minimum": 0 },
+            "timeout": { "type": ["string", "integer"] },
+            "writeTimeout": { "type": ["string", "integer"] },
+            "tcpKeepaliveAfterIdleTime": { "type": ["string", "integer"] },
+            "tcpKeepaliveInterval": { "type": ["string", "integer"] },
+            "tcpKeepaliveRetries": { "type": "integer", "minimum": 0 },
+            "http2KeepaliveInterval": { "type": ["string", "integer"] },
+            "http2KeepaliveTimeout": { "type": ["string", "integer"] },
+            "tenantFromMetadata": { "type": "boolean" },
+            "maxDecodingMessageSize": { "type": ["string", "integer"] },
+            "putTimeout": { "type": ["string", "integer"] }
+          }
+        },
+
+        "grpcTls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "description": "Certificate paths are fixed by the chart at /etc/ovdc/tls and are not configurable.",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "secretName": {
+              "description": "Required when enabled is true. The template fails the render otherwise.",
+              "type": "string"
+            },
+            "includeCaRoot": { "type": "boolean" }
+          }
+        },
+
+        "grpcJwt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "require": { "type": "boolean" },
+            "jwkPublicKeysetUrl": { "type": "array", "items": { "type": "string" } },
+            "jwkUpdateIntervalSecs": { "type": "integer", "minimum": 0 },
+            "cacheSizeMb": { "type": "integer", "minimum": 0 },
+            "verifyAud": { "type": "boolean" },
+            "audClaim": { "type": "string" },
+            "verifyExp": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  },
+
+  "definitions": {
+    "exporterKind": {
+      "description": "Only \"otlp\" produces output in this build; \"console\" is not compiled in.",
+      "enum": ["otlp", "console", "none"]
+    },
+    "otlp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "endpoint", "timeout"],
+      "properties": {
+        "protocol": {
+          "description": "This build ships only the gRPC exporter. HTTP values deserialize but export nothing.",
+          "enum": ["grpc", "http/protobuf", "http/json"]
+        },
+        "endpoint": { "type": "string", "minLength": 1 },
+        "timeout": { "type": ["string", "integer"] }
+      }
+    },
+    "batchProcessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheduleDelay", "maxQueueSize", "maxBatchSize"],
+      "properties": {
+        "scheduleDelay": { "type": ["integer", "string"] },
+        "maxQueueSize": { "type": "integer", "minimum": 1 },
+        "maxBatchSize": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

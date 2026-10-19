@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Pins the toolchain the engine is built and validated with.
+[toolchain]
+channel = "1.96.0"
+components = ["clippy", "rustfmt"]

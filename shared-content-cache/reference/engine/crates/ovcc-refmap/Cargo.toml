@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-refmap"
+description = "Concurrent map of reference-counted entries with lock-free lookups and incremental resizing for OVCC."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "refmap"
+harness = false
+
+[dependencies]
+parking_lot.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+# Concurrent maps that the scaling and memory harnesses compare against.
+dashmap.workspace = true
+papaya.workspace = true
+scc.workspace = true
+rand.workspace = true
+# The lifecycle conformance test reads the committed TLA+ fixtures.
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sha2.workspace = true
+
+# Model checking runs only as `RUSTFLAGS="--cfg loom" cargo test --lib`.
+[target.'cfg(loom)'.dev-dependencies]
+loom.workspace = true

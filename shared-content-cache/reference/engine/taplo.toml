@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+include = ["**/*.toml"]
+exclude = ["**/target/**"]
+
+[formatting]
+align_entries = false
+align_comments = true
+array_trailing_comma = true
+array_auto_expand = true
+array_auto_collapse = true
+column_width = 100
+compact_arrays = true
+compact_inline_tables = false
+indent_string = "    "
+trailing_newline = true
+reorder_keys = false
+reorder_arrays = false

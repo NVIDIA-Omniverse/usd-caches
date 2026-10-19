@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovdc_bytes"
+version = "0.1.1"
+edition = "2021"
+description = "Provides low level byte containers for KV types"
+license = "Apache-2.0"
+repository = "https://github.com/NVIDIA-Omniverse/usd-caches-internal/tree/main/shared-derived-cache/reference"
+publish = false
+
+[dependencies]
+bytes.workspace = true
+seahash.workspace = true
+serde.workspace = true
+rand.workspace = true
+base64.workspace = true

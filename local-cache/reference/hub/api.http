@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+@host = 0.0.0.0:14090
+
+### Get current configuration
+GET http://{{host}}/api/1.0/service/config
+Content-Type: application/json
+
+
+### Update cache configuration
+PUT http://{{host}}/api/1.0/service/config
+Content-Type: application/json
+
+{
+  "cache": {
+    "path": "path/to/cache",
+    "max_size": "1.0 GB",
+    "cleanup_threshold": 10,
+    "garbage_collection_interval": 300,
+  }
+}
+
+### Update and http settingss
+PUT http://{{host}}/api/1.0/service/config
+Content-Type: application/json
+
+{
+  "http": {
+    "port": 14090,
+    "host": "127.0.0.1"
+  }
+}
+
+### Update Runtime
+PUT http://{{host}}/api/1.0/service/config
+Content-Type: application/json
+
+{
+  "runtime": {
+    "num_worker_threads": 1
+  }
+}
+
+### Update Transport TCP
+PUT http://{{host}}/api/1.0/service/config
+Content-Type: application/json
+
+{
+  "transport_tcp": {
+    "host": "127.0.0.1",
+    "port": 1111
+  }
+}
+
+### Check health
+GET http://{{host}}/api/health
+Content-Type: application/json
+
+
+### Cache
+GET http://{{host}}/api/1.0/cache/stats
+Content-Type: application/json
+
+
+### Reset Cache Stats
+DELETE http://{{host}}/api/1.0/cache/stats/reset
+Content-Type: application/json

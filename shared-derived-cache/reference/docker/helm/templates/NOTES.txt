@@ -1,0 +1,50 @@
+{{/*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/}}
+{{ include "ovdc.fullname" . }} ({{ .Chart.Name }}-{{ .Chart.Version }}) installed into namespace {{ .Release.Namespace }}.
+
+Replicas:  {{ .Values.replicas }}
+gRPC:      {{ include "ovdc.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "ovdc.grpcPort" . }}
+Metrics:   :{{ include "ovdc.metricsPort" . }} ({{ .Values.monitoring.path }}){{ if not .Values.settings.telemetry.prometheusMetricsExposition }}  [DISABLED]{{ end }}
+
+The Service is headless, so that DNS name resolves to all pod IPs. Individual
+pods are addressable as {{ include "ovdc.fullname" . }}-<ordinal>.{{ include "ovdc.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+
+Storage:
+{{- if .Values.storage.volume.enabled }}
+  {{ .Values.storage.volume.size }} per replica on storage class {{ .Values.storage.volume.storageClassName }}.
+  DB target: {{ if eq (upper (.Values.settings.store.maxSize | toString)) "AUTO" }}{{ include "ovdc.autoMaxSizeBytes" . }} bytes (AUTO, derived from the volume){{ else }}{{ .Values.settings.store.maxSize }}{{ end }}
+  Note: volumeClaimTemplates are immutable. Changing storage.volume.size on an
+  existing release will be rejected on upgrade.
+{{- else }}
+  WARNING: storage.volume.enabled is false. The database lives on the container
+  filesystem and ALL DATA IS LOST when a pod restarts or is rescheduled.
+  This is only appropriate for dev/test.
+{{- end }}
+
+{{- if .Values.settings.grpcTls.enabled }}
+
+TLS is enabled. The Secret {{ .Values.settings.grpcTls.secretName }} must exist in
+namespace {{ .Release.Namespace }} and contain tls.crt and tls.key{{ if .Values.settings.grpcTls.includeCaRoot }}, plus ca.crt
+because includeCaRoot is true{{ end }}. Create it with:
+
+  kubectl create secret tls {{ .Values.settings.grpcTls.secretName }} -n {{ .Release.Namespace }} --cert=cert.pem --key=key.pem
+{{- end }}
+
+{{- if .Values.service.loadBalancer }}
+
+{{ .Values.replicas }} per-pod LoadBalancer Service(s) were created. Watch for external IPs:
+
+  kubectl get svc -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -w
+{{- end }}
+
+{{- if .Values.debug }}
+
+WARNING: debug is true. The main container runs `sleep` instead of the service,
+and an extra debug pod was created. Do not use this in production.
+{{- end }}
+
+Check status:
+
+  kubectl rollout status statefulset/{{ include "ovdc.fullname" . }} -n {{ .Release.Namespace }}

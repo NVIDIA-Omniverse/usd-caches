@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovdc_attributions"
+version = "0.1.0"
+edition = "2021"
+description = "Generates ATTRIBUTIONS.md from the resolved cargo dependency graph."
+license = "Apache-2.0"
+repository = "https://github.com/NVIDIA-Omniverse/usd-caches-internal/tree/main/shared-derived-cache/reference"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "gen-attributions"
+path = "src/main.rs"
+
+[dependencies]
+serde_json.workspace = true

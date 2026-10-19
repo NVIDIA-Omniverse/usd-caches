@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="fontawesome.min.css">
+    <link rel="stylesheet" href="main.css">
+    <link rel="icon" href="logo.png">
+    <title>Hub</title>
+</head>
+
+<body>
+
+    <header>
+        <a aria-current="page" class="header-logo" href="javascript:void(0);">
+            <img src="omniverse.svg" alt="" class="logo">
+        </a>
+        <nav>
+            <a class="active" id="hub_selector" href="javascript:void(0);"
+                style="background: rgb(224, 224, 224); color: rgb(66, 102, 70); box-shadow: black 3px 3px 7px -3px;"
+                aria-current="page">
+                <span class="icon" title="Hub" tabindex="-1" role="img" aria-label="Hub">
+                    <i class="fa fa-tower-cell"></i></span>
+                <span class="title">Hub</span>
+            </a>
+        </nav>
+    </header>
+
+    <!------------------------------------------------------------------------------
+    -- Hub
+    ------------------------------------------------------------------------------->
+
+    <div class="page" id="hub_page">
+
+        <h1 class="title">
+            Hub
+        </h1>
+
+        <div class="panels">
+
+            <form id="post">
+
+                <h2>Cache</h2>
+
+                <p class="feedback hide" id="feedback"></p>
+
+                <div class="field">
+                    <label for="cache_path">
+                        <span class="label-icon" tabindex="-1" role="img"><i class="fa fa-home"></i>
+                        </span>
+                        Cache Path
+                    </label>
+                    <input class="input" id="cache_path" type="text" name="cache_path" />
+                </div>
+
+                <div class="field">
+                    <label for="cache_cleanup_threshold">
+                        Cleanup Threshold (%)
+
+                        <div class="description">Percentage of the cache size that garbage collection will attempt to
+                            clean up once it goes over the maximum size.
+                        </div>
+                    </label>
+                    <input class="input" id="cache_cleanup_threshold" type="number" min="0" max="100"
+                        name="cache_cleanup_threshold" />
+                </div>
+
+                <div class="field">
+                    <label for="cache_garbage_collection_interval">
+                        Cache Collection Interval (s)
+
+                        <div class="description">Garbage collection background interval</div>
+                    </label>
+                    <input class="input" type="number" min="0" max="5000" id="cache_garbage_collection_interval"
+                        name="cache_garbage_collection_interval" />
+                </div>
+
+                <div class="field">
+                    <label for="cache_max_size">
+                        Cache Max Size (Gb)
+
+                        <div class="description">Maximum size of the cache (note cache could exceed this value until
+                            garbage collection completes)
+                        </div>
+                    </label>
+                    <input class="input" id="cache_max_size" type="number" name="cache_max_size" min="2" />
+                </div>
+
+                <div class="field">
+                    <button id="submit" type="submit">Apply</button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="field">
+                    <label class="subtitle">Cache size:</label>
+                    <span class="value" id="cache_size">N/A</span> <span class="value-extra" id="cache_size_info">GB</span>
+                </div>
+
+                <div class="field">
+                    <label class="subtitle">Cached files:</label>
+                    <span class="value" id="cache_files">N/A</span>
+                </div>
+
+                <div class="field">
+                    <button id="clear_cache" type="button">Clear</button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="field">
+
+                    <label class="subtitle">
+                        <span class="label-icon" tabindex="-1" role="img"><i class="fa fa-file-archive"></i>
+                        </span>
+                        Support Bundle
+                        <div class="description">The support bundle gathers information both about Omniverse Hub and the
+                            environment in which it is operating. It provides information about the database and
+                            configuration of Hub and system performance metrics. If you have any issues, please download
+                            it and send it to us.
+                        </div>
+                    </label>
+                </div>
+
+                <div class="field">
+                    <button id="support_bundle" type="button">
+                        Download Support Bundle
+                    </button>
+                </div>
+            </form>
+
+        </div>
+
+    </div>
+
+    <script type="module" src="bundle.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+edition = "2021"
+match_block_trailing_comma = true
+max_width = 120
+reorder_imports = true
+tab_spaces = 4
+# nightly features
+# comment_width = 100
+# error_on_line_overflow = true
+# wrap_comments = true

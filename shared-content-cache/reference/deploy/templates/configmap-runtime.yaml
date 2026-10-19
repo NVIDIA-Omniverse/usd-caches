@@ -1,0 +1,19 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chart.compatFullname" . }}-runtime
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+data:
+  cacheResetPath: {{ include "func.cacheResetPath" . | quote }}
+  instanceHeader: {{ include "func.instanceHeader" . | quote }}
+  metricPrefix: {{ include "func.metricPrefix" . | quote }}
+  useUccDefaults: {{ .Values.compat.useUccDefaults | quote }}
+  emitLegacyCacheReset: {{ .Values.compat.emitLegacyCacheReset | quote }}
+  legacyCacheResetPath: {{ include "func.legacyCacheResetPath" . | quote }}
+  legacyInstanceHeader: {{ include "func.legacyInstanceHeader" . | quote }}
+  tlsSecretName: {{ include "func.effectiveTlsSecretName" . | quote }}

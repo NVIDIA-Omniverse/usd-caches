@@ -1,0 +1,615 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Default values for ovdc.
+#
+# This file has two halves, and the distinction matters:
+#
+#   * `settings.*` mirrors the application's own config schema
+#     (rust/ovdc/src/config.toml) and is rendered key-by-key into the
+#     ConfigMap's config.toml. Every key here must be one the binary
+#     deserializes; a missing required key panics the process at startup.
+#   * everything else is Kubernetes-level chart configuration.
+#
+# The container re-reads config.toml every 5 seconds (rust/ovdc_settings/src/lib.rs)
+# and applies changes without a restart, but only for settings that are read
+# per-use: logFormat/logLevel/logFilter, all otel*/telemetry sections (including
+# otelTraces.level/filter and otelLogs.level/filter), garbageCollection, and
+# store.blobCutoff/blobChunkSize. store.maxSize, store.mode, the whole
+# engine section, grpc, grpcTls and grpcJwt are read once at startup, so
+# changing them requires a pod restart. A reloaded file that fails validation
+# panics the pod, so a bad `helm upgrade` surfaces as CrashLoopBackOff.
+#
+# See README.md in this directory for the fuller narrative.
+
+# Labels added to the StatefulSet, its volume claims and the pod template.
+global:
+  additionalLabels:
+
+image:
+  # Registry and repository the release image is pulled from. This is the
+  # promotion target the release pipeline pushes to on a tag, so the tag the
+  # chart asks for is guaranteed to exist.
+  registry: nvcr.io
+  repository: nvidia/omniverse/ovderivedcache
+  pullPolicy: IfNotPresent
+  # Rendered as the pod's imagePullSecrets, so each entry is a `name:` mapping
+  # referencing a kubernetes.io/dockerconfigjson Secret in this namespace.
+  pullSecrets:
+    - name: regcred
+  # Image tag, used only when overrideTag is true. Otherwise the chart's
+  # appVersion is used.
+  tag: "latest"
+  overrideTag: false
+
+# Override the chart name used to build resource names. The release name still
+# prefixes them: release `foo` with nameOverride `bar` yields `foo-bar`.
+nameOverride: ""
+# Replace the generated resource name outright, ignoring the release name.
+fullnameOverride: ""
+
+# The number of pods to deploy.
+#
+# By default the pods prefer to be scheduled on different nodes (see
+# selfAntiAffinity). It is only a preference: if a node already runs a ovdc pod,
+# another is still placed there when no other node is available. This spreads
+# load without making it impossible to scale up on a single node.
+#
+# When using networked storage classes like 'managed-csi-premium' on AKS or
+# NVMesh classes, it may benefit the deployment to have several replicas
+# scheduled on the same node. For example, in AKS *EACH* volume can likely
+# burst to ~150MB/s.
+replicas: 1
+
+# Node label constraints for the pods, e.g. `agentpool: ovdcpool`.
+nodeSelector: {}
+
+# Taints the pods tolerate, in the standard Kubernetes tolerations format.
+tolerations: []
+
+# When true, the scheduler prefers to place ovdc pods on nodes that do not
+# already run one. Merged into `affinity` below; values set there win on
+# conflict. Set false to drop the chart's rule entirely.
+selfAntiAffinity: true
+
+# Additional affinity rules for the pod template. Merged over the chart's
+# self-anti-affinity rule above, so a podAntiAffinity set here replaces it.
+affinity: {}
+
+# Annotations added to the pod template. Note that changing these rolls the
+# StatefulSet, which is the usual way to force a restart.
+podAnnotations: {}
+
+# Pod-level securityContext, applied to every container in the pod.
+#
+# fsGroup is what makes the non-root default work: the kubelet chowns the
+# mounted volume at /env to this GID, so the application can create its
+# environment and DB directories there without being root. Changing runAsUser
+# or runAsGroup below without changing fsGroup to match will leave the volume
+# unwritable.
+#
+# Note that fsGroup only applies to mounted volumes, not to the image's own
+# filesystem. The application writes exclusively under /env, which is always a
+# volume (see storage.volume.enabled), so that is sufficient here.
+#
+# seccompProfile keeps the chart compatible with namespaces enforcing the
+# restricted Pod Security Standard.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Passed to the container as RUST_LOG and RUST_BACKTRACE.
+#
+# RUST_LOG is only a fallback for the stdout log level: settings.logLevel below
+# wins whenever it parses, and the chart always renders it, so in a default
+# install this value has no effect. It is still read for panics and for any
+# code that consults RUST_LOG directly.
+rustLog: "info"
+rustBacktrace: "full"
+
+# Container-level securityContext for the ovdc container.
+#
+# The image itself declares USER 1000:1000, and these chart defaults repeat the
+# pod-level ids deliberately, so that overriding one level does not silently
+# leave the other at root. The uid does not need to exist in the image's
+# /etc/passwd — the kernel only cares about the numeric id.
+#
+# readOnlyRootFilesystem is deliberately NOT set. It has not been verified
+# against RocksDB's temp-file behaviour, and turning it on untested would trade
+# a working default for a broken one. Enable it yourself if your policy needs
+# it, but test a full compaction cycle first.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+# Compute resources for the ovdc container, passed through verbatim.
+resources:
+  requests:
+    # This should be equal to at least the size of the row cache + block cache + network buffers
+    # (budget roughly 2-6GB for network buffers),
+    # i.e. settings.engine.cacheSize + settings.engine.blockCacheSize + ~2-6GB.
+    # With the default settings.engine.useWriteBufferManager: true, write
+    # buffers (memtables) are charged against the block cache budget, so they
+    # are already counted in blockCacheSize and must not be added again.
+    # If settings.engine.useWriteBufferManager is false, write buffers are
+    # not part of that budget; add them separately:
+    # settings.engine.cacheSize + settings.engine.blockCacheSize +
+    # (settings.engine.cf.write_buffer_size x max_write_buffer_number) + ~2-6GB.
+    # If presets.ram is set, it overrides settings.engine.cacheSize and
+    # blockCacheSize (the preset's two sizes sum to its named value), so use
+    # the overridden values in this formula, not the settings.engine ones
+    # below. Leave room for the ~2-6GB of network buffers on top of the preset.
+    memory: 56G
+  #limits:
+  #  memory: 248G
+
+storage:
+  volume:
+    # When enabled the DB environment will reside on a k8s mounted volume.
+    #
+    # When false no PersistentVolumeClaim is created and the DB environment is
+    # created on the container's own filesystem instead, so the database is
+    # ephemeral: everything written is lost whenever a pod restarts or is
+    # rescheduled. Only appropriate for dev/test.
+    enabled: true
+    # The size of the requested PersistentVolumeClaim.
+    #
+    # This drives settings.store.maxSize when that value is "AUTO": the DB
+    # target becomes this size less min(20%, 100GB) of headroom. Changing this
+    # value therefore resizes the DB target too. If settings.store.maxSize is
+    # set explicitly instead, keep it comfortably below this number — nothing
+    # validates the relationship for you.
+    #
+    # Note that a StatefulSet's volumeClaimTemplates are immutable: changing
+    # this on an existing release will be rejected on upgrade.
+    size: 300Gi
+    # This is azure specific and should be changed to match a class available in your cluster.
+    # The class must support ReadWriteOnce; each replica gets its own volume.
+    storageClassName: managed-csi
+
+# Set-and-forget sizing: pick the CPU and RAM you want the deployment to use
+# and the engine tuning is derived for you. Leave unset (null) to use
+# settings.engine as written.
+presets:
+  # CPU cores: 1-8.
+  cpu: ~
+  # Memory: any whole number of GB from "4GB" to "96GB" (e.g. "10GB").
+  ram: ~
+
+settings:
+  # Allowed values are json, human, human_no_color
+  logFormat: "json"
+  # Log level for stdout fmt layer. Allowed values: "error", "warn", "info", "debug", "trace", "off"
+  # Takes precedence over the RUST_LOG environment variable set by `rustLog`.
+  logLevel: "info"
+  # Optional per-module level overrides layered on top of logLevel, for the stdout sink only.
+  # Independent of otelTraces.level/filter and otelLogs.level/filter below -- each sink's level
+  # and filter can be set independently. Format: module[*]=level[,module2[*]=level2]...
+  # e.g. "ovdc::grpc=debug"
+  logFilter: ""
+
+  # Configure additional storage settings.
+  store:
+    # This is the target max size for the application to use. Note that under
+    # very high write workloads the DB may temporarily grow larger than this.
+    #
+    # It is both the RocksDB on-disk target and the denominator garbage
+    # collection measures free capacity against (see garbageCollection below).
+    #
+    # "AUTO" derives the size from storage.volume.size: the whole volume less
+    # min(20%, 100GB) of headroom. The 20% covers small volumes; the 100GB clamp
+    # stops the reserve growing without bound on large ones. For example a 300Gi
+    # volume yields ~257GB (80%), while a 10Ti volume yields ~10.9TB (99%).
+    #
+    # AUTO requires storage.volume.enabled: true. Otherwise set an explicit size
+    # such as "275G", which is used verbatim.
+    maxSize: AUTO
+    # The size after which values will be split up.
+    #
+    # A put whose declared size exceeds this is written as a chunked blob;
+    # anything at or below it is written as a single value.
+    blobCutoff: 2500
+    # The size by which to split values by.
+    #
+    # Only applies to values above blobCutoff. Each blob is stored as
+    # ceil(size / blobChunkSize) chunks.
+    blobChunkSize: 4000000
+    # Engine to use when storing files. Allowed values:
+    #   "legacy"              blobs and values share one column family
+    #   "legacy_and_discrete" blobs go to a separate 'blobs' column family
+    #   "log"                 discrete blobs, values written as merge-operator logs
+    # Changing this on a populated database changes how values are read back;
+    # treat it as fixed for the life of the volume.
+    mode: "log"
+
+  # Engine specific configuration.
+  #
+  # This section configures RocksDB (rust/ovdc_map/src/environment/rocks_adapter/config.rs)
+  # and is read once, when the database is opened. Changes need a pod restart.
+  engine:
+    # When true, memtable memory is charged against the same LRU cache as
+    # blockCacheSize, so the two share one budget instead of adding up.
+    useWriteBufferManager: true
+    # Size of the in-process row cache holding recently read entries. This is
+    # ovdc's own cache, not a RocksDB one. 0 disables it.
+    cacheSize: "32G"
+    # Size of the RocksDB LRU block cache. Also backs the write buffer manager
+    # when useWriteBufferManager is true.
+    blockCacheSize: "8G"
+    # RocksDB `increase_parallelism`: total background threads for flushes and
+    # compactions.
+    increaseParallelism: 8
+    # Env high/low priority background thread counts (flushes and compactions
+    # respectively).
+    threadsHigh: 4
+    threadsLow: 4
+
+    # The maps below are passed to RocksDB verbatim, merged over the binary's
+    # built-in defaults. Keys are RocksDB option names, so arbitrary options may
+    # be added and are not validated by the chart — an unknown or malformed
+    # option fails at DB open, i.e. at pod start.
+    #
+    #   db                    DBOptions, database-wide
+    #   cf / block            CFOptions / BlockBasedTableOptions for the
+    #                         'default' column family
+    #   blobsCf / blobsBlock  the same, for the 'blobs' column family
+    #
+    # Note that only keys named here are rendered into config.toml. Adding a
+    # key under `engine:` that the chart does not know about is silently
+    # dropped rather than passed through.
+    db:
+      allow_concurrent_memtable_write: true # Lets multiple threads write to a memtable at once.
+      max_open_files: 128 # Max file handles RocksDB keeps open; -1 means unlimited.
+      max_background_jobs: 6 # Max concurrent flush + compaction jobs.
+      table_cache_numshardbits: 8 # Number of shards (as a power of two) for the table/file cache.
+      fail_if_options_file_error: true # Refuse to start rather than ignore a malformed OPTIONS file.
+      keep_log_file_num: 8 # Number of old RocksDB LOG files kept before deletion.
+      avoid_unnecessary_blocking_io: true # Defers file deletion to a background thread.
+      max_log_file_size: "64M" # Size at which the RocksDB LOG file rolls over.
+      stats_dump_period_sec: 0 # Interval for periodic stats dumps to the LOG file; 0 disables it.
+      create_if_missing: true # Creates the database if it does not already exist.
+      max_subcompactions: 2 # Splits one compaction into parallel sub-ranges instead of a single serial writer thread; measured ~7.7x throughput on the blobs CF's manual GC compaction (~25MB/s -> ~195MB/s).
+
+    # CFOptions/BlockBasedTableOptions for the 'default' column family, which
+    # holds every key and, in "log" mode, small values and merge-log records.
+    cf:
+      max_write_buffer_number: 4 # Max memtables (active + immutable) held before writes stall.
+      min_write_buffer_number_to_merge: 1 # Minimum immutable memtables merged together on flush.
+      write_buffer_size: "64M" # Size of one memtable before it is flushed to an SST file.
+      level0_stop_writes_trigger: 24 # L0 file count at which writes stop until compaction catches up.
+      blob_garbage_collection_force_threshold: 0.25 # Garbage ratio at which a blob file's compaction is forced.
+
+      min_blob_size: 8096 # Values at/above this size are stored as a blob file instead of inline.
+      enable_blob_files: true # Turns on RocksDB's integrated BlobDB storage for this column family.
+      enable_blob_garbage_collection: true # Reclaims space from blob files during compaction.
+      memtable_whole_key_filtering: true # Uses the memtable's bloom filter for whole-key lookups.
+      periodic_compaction_seconds: 28800 # Forces a file through compaction after this long, even if untouched.
+      memtable_prefix_bloom_size_ratio: 0.020000 # Fraction of write_buffer_size used for the memtable's prefix bloom filter.
+
+    block:
+      cache_index_and_filter_blocks: true # Counts index/filter blocks against the block cache budget.
+      block_size: 16384 # Target uncompressed size of one data block.
+      index_type: "kTwoLevelIndexSearch" # Two-level index, cheaper to keep resident for large files.
+      filter_policy: "bloomfilter:10" # Bloom filter with ~10 bits per key.
+      partition_filters: true # Splits the bloom filter into partitions loaded independently.
+      optimize_filters_for_memory: true # Packs filter blocks to reduce memory overhead.
+      data_block_index_type: "kDataBlockBinaryAndHash" # Adds a hash index within data blocks for faster point lookups.
+      pin_l0_filter_and_index_blocks_in_cache: true # Keeps L0 files' filter/index blocks pinned in cache.
+      prepopulate_block_cache: "kFlushOnly" # Warms the block cache with blocks written by flushes.
+
+    # CFOptions/BlockBasedTableOptions for the 'blobs' column family, which
+    # exists when store.mode is "log" or "legacy_and_discrete" and holds
+    # every value above store.blobCutoff.
+    blobsCf:
+      max_write_buffer_number: 24 # Max memtables (active + immutable) held before writes stall.
+      min_write_buffer_number_to_merge: 1 # Minimum immutable memtables merged together on flush.
+      write_buffer_size: "64M" # Size of one memtable before it is flushed to an SST file.
+      level0_stop_writes_trigger: 24 # L0 file count at which writes stop until compaction catches up.
+      blob_garbage_collection_force_threshold: 0.25 # Garbage ratio at which a blob file's compaction is forced.
+
+      enable_blob_files: true # Turns on RocksDB's integrated BlobDB storage for this column family.
+      min_blob_size: 0 # Values at/above this size are stored as a blob file; 0 blobs everything.
+      blob_file_size: "64M" # Max size of one blob file before a new one is started.
+      enable_blob_garbage_collection: true # Reclaims space from blob files during compaction.
+      blob_garbage_collection_age_cutoff: 0.8 # Fraction of oldest blob files eligible for relocation per compaction.
+      blob_compaction_readahead_size: "4M" # Prefetch size for blob-file reads during compaction.
+      memtable_whole_key_filtering: true # Uses the memtable's bloom filter for whole-key lookups.
+      periodic_compaction_seconds: 28800 # Forces a file through compaction after this long, even if untouched.
+      memtable_prefix_bloom_size_ratio: 0.020000 # Fraction of write_buffer_size used for the memtable's prefix bloom filter.
+
+    blobsBlock:
+      cache_index_and_filter_blocks: true # Counts index/filter blocks against the block cache budget.
+      block_size: 16384 # Target uncompressed size of one data block.
+      index_type: "kTwoLevelIndexSearch" # Two-level index, cheaper to keep resident for large files.
+      filter_policy: "bloomfilter:10" # Bloom filter with ~10 bits per key.
+      partition_filters: true # Splits the bloom filter into partitions loaded independently.
+      optimize_filters_for_memory: true # Packs filter blocks to reduce memory overhead.
+      data_block_index_type: "kDataBlockBinaryAndHash" # Adds a hash index within data blocks for faster point lookups.
+      pin_l0_filter_and_index_blocks_in_cache: true # Keeps L0 files' filter/index blocks pinned in cache.
+      prepopulate_block_cache: "kFlushOnly" # Warms the block cache with blocks written by flushes.
+
+  # Configuration for garbage collection.
+  #
+  # A background task compares DB usage against settings.store.maxSize every
+  # five seconds and runs a collection pass when free space drops below the
+  # threshold. minFreeCapacity and deleteKeyspaceQuantile are percentages
+  # (0-100); cooldownSecs is in seconds.
+  garbageCollection:
+    # The minimum free capacity target for the target map.
+    # If the percentage of free map space falls below the given amount, GC will begin.
+    minFreeCapacity: 40
+    # Once GC begins, the system will attempt to remove the given quantile of the entire keyspace.
+    # If this number is 60, then 60% of keys will be deleted.
+    deleteKeyspaceQuantile: 60
+    # How long to wait after a GC pass finishes before checking free capacity again.
+    cooldownSecs: 10
+
+  # An http metric service is started on the specified port serving prometheus
+  # plain text metrics.
+  telemetry:
+    # Enables or disables prometheus metric export. When false nothing listens
+    # on the port below, but the Service and its scrape annotations are still
+    # created, so scrapes fail rather than being skipped.
+    prometheusMetricsExposition: true
+    # The port to serve metrics on. Bound on 0.0.0.0 and used for the container
+    # port, the Service targetPort and the prometheus.io/port annotation.
+    prometheusMetricsPort: 3051
+
+  # Main configuration for OpenTelemetry integration.
+  otel:
+    # Deserialized but not acted on: the binary reads this section and discards
+    # it, so setting false does NOT disable export. Disable by setting
+    # `exporter: "none"` in each of otelTraces/otelLogs/otelMetrics below.
+    # Required by the config schema; removing it panics the process.
+    enabled: true
+    # Likewise inert. OTEL_* environment variables are always applied on top of
+    # the otelTraces/otelLogs/otelMetrics sections regardless of this flag. The
+    # chart sets no OTEL_* variables itself, so this only matters if something
+    # else injects them into the pod.
+    useEnvVars: true
+
+  # Configuration for distributed tracing.
+  otelTraces:
+    # The exporter to use. Acceptable values: "otlp", "console", "none".
+    # "console" deserializes but is not compiled into this build and exports
+    # nothing, logging "console trace exporter is not available in this build".
+    exporter: "otlp"
+
+    otlp:
+      # The OTLP export protocol. This build only ships the gRPC exporter;
+      # "http/protobuf" and "http/json" still deserialize but export nothing,
+      # logging "OTLP HTTP trace exporter is not available in this build".
+      protocol: "grpc"
+      # The OTLP URI for exposition. Must point at a collector reachable from
+      # the pod. gRPC OTLP takes no path suffix. Set exporter to "none" above to
+      # disable OTLP export; prometheus metrics are unaffected either way.
+      endpoint: "http://localhost:4317"
+      # The timeout duration for OTLP export requests.
+      timeout: "10s"
+    processor:
+      # The delay in milliseconds between batch export attempts.
+      scheduleDelay: 5000
+      # The maximum number of items to queue before dropping new items.
+      maxQueueSize: 2048
+      # The maximum number of items to include in a single batch export.
+      maxBatchSize: 512
+
+    # Maximum length in bytes for span attribute values. Longer values are truncated.
+    attributeValueLengthLimit: "4K"
+    # Maximum number of attributes allowed per span.
+    attributeCountLimit: 128
+    # Maximum number of events allowed per span.
+    eventCountLimit: 128
+    # Maximum number of links allowed per span.
+    linkCountLimit: 128
+    # Maximum number of attributes allowed per span event.
+    eventAttributeCountLimit: 128
+    # Maximum number of attributes allowed per span link.
+    linkAttributeCountLimit: 128
+    # Sampling strategy and its ratio argument. Both are required by the
+    # application's config schema, but nothing currently reads them — sampling
+    # is not applied. Kept so the config deserializes; do not remove.
+    samplerArg: 0.25
+    sampler: "always_on"
+    # Base level for events forwarded to the span exporter, independent of the stdout
+    # logLevel and otelLogs.level. Allowed values: "error", "warn", "info", "debug", "trace", "off"
+    level: "info"
+    # Optional per-module level overrides layered on top of `level`.
+    # Format: module[*]=level[,module2[*]=level2]...  e.g. "ovdc::grpc=debug"
+    filter: ""
+
+  # Configuration for distributed logs.
+  otelLogs:
+    # The exporter to use. Acceptable values: "otlp", "console", "none".
+    # "console" deserializes but is not compiled into this build and exports
+    # nothing, logging "console log exporter is not available in this build".
+    exporter: "otlp"
+
+    otlp:
+      # The OTLP export protocol. This build only ships the gRPC exporter;
+      # "http/protobuf" and "http/json" still deserialize but export nothing,
+      # logging "OTLP HTTP log exporter is not available in this build".
+      protocol: "grpc"
+      # The OTLP URI for exposition. Must point at a collector reachable from
+      # the pod. gRPC OTLP takes no path suffix. Set exporter to "none" above to
+      # disable OTLP export; prometheus metrics are unaffected either way.
+      endpoint: "http://localhost:4317"
+      # The timeout duration for OTLP export requests.
+      timeout: "10s"
+    processor:
+      # The delay in milliseconds between batch export attempts.
+      scheduleDelay: 5000
+      # The maximum number of items to queue before dropping new items.
+      maxQueueSize: 2048
+      # The maximum number of items to include in a single batch export.
+      maxBatchSize: 512
+
+    # Maximum length in bytes for log attribute values. Longer values are truncated.
+    attributeValueLengthLimit: "4K"
+    # Maximum number of attributes allowed per log record.
+    attributeCountLimit: 128
+    # Base level for events forwarded to the log exporter, independent of the stdout
+    # logLevel and otelTraces.level. Allowed values: "error", "warn", "info", "debug", "trace", "off"
+    level: "info"
+    # Optional per-module level overrides layered on top of `level`.
+    # Format: module[*]=level[,module2[*]=level2]...  e.g. "ovdc::grpc=debug"
+    filter: ""
+
+  # Configuration for metrics.
+  otelMetrics:
+    # The exporter to use. Acceptable values: "otlp", "console", "none".
+    # "console" deserializes but is not compiled into this build and exports
+    # nothing. Independent of settings.telemetry above, which drives the
+    # prometheus scrape endpoint.
+    exporter: "otlp"
+
+    otlp:
+      # The OTLP export protocol. This build only ships the gRPC exporter;
+      # "http/protobuf" and "http/json" still deserialize but export nothing,
+      # logging "OTLP HTTP metric exporter is not available in this build".
+      protocol: "grpc"
+      # The OTLP URI for exposition. Must point at a collector reachable from
+      # the pod. gRPC OTLP takes no path suffix. Set exporter to "none" above to
+      # disable OTLP export; prometheus metrics are unaffected either way.
+      endpoint: "http://localhost:4317"
+      # The timeout duration for OTLP export requests.
+      timeout: "15s"
+    processor:
+      # The delay in milliseconds between export attempts.
+      interval: "30s"
+    # Controls which events are forwarded to the OTEL metrics exporter.
+    # Format: global_level[,module[*]=level]...
+    filter: "info"
+
+  # Configure the GRPC HTTP service.
+  #
+  # Read once at startup; changes require a pod restart.
+  grpc:
+    # The port at which to serve the GRPC service. Also used for the container
+    # port, both Services' targetPort and the readiness/liveness probes.
+    port: 3010
+    # Set the initial HTTP2 stream window size. Must not be 0.
+    initialStreamWindowSize: "512K"
+    # Set the initial HTTP2 connection window size. Must not be 0.
+    initialConnectionWindowSize: "32M"
+    # Max number of requests that can be operated on concurrently per connection. Must not be 0.
+    connectionConcurrencyLimit: 32
+    # Max number of HTTP2 streams per connection. 0 for unlimited.
+    maxConcurrentStreams: 0
+    # Max frame size for each HTTP2 data frame. 0 for HTTP2 default.
+    maxFrameSize: 0
+    # Max time that a request can take. Must not be 0.
+    timeout: "30s"
+    # The amount of time to wait before timing out a proto buf write.
+    writeTimeout: "15s"
+    # The amount of time in seconds before keepalive probes are sent.
+    tcpKeepaliveAfterIdleTime: "3s"
+    # The amount of time between each keepalive probe.
+    tcpKeepaliveInterval: "3s"
+    # The number of probes to send before the socket is considered reset.
+    tcpKeepaliveRetries: 5
+    # The amount of time to wait between http2 keepalive probes.
+    http2KeepaliveInterval: "3s"
+    # The amount of time to wait before connection is considered reset.
+    http2KeepaliveTimeout: "20s"
+    # If true a tenant ID can be set through a string set in the metadata.
+    tenantFromMetadata: true
+    # The max size that the GRPC service will allow.
+    # Values larger than this must be written as chunked blobs, so keep it above
+    # settings.store.blobChunkSize plus protocol overhead.
+    maxDecodingMessageSize: "5M"
+    # Max time that a single PUT stream can run for. Distinct from `timeout`,
+    # which bounds an ordinary request; a PUT is a client-driven stream that can
+    # legitimately run for minutes. Capped at 4h -- a larger value is logged as
+    # an error and treated as 4h rather than refused, so a typo here does not
+    # stop the pod from starting.
+    putTimeout: "1h"
+
+  # Configuration for TLS properties for GRPC.
+  grpcTls:
+    # If true the tonic server will require TLS.
+    enabled: false
+
+    # Name of the Secret holding the server certificate. Required when
+    # enabled is true. Create it with:
+    #
+    #   kubectl create secret tls ovdc-tls --cert=cert.pem --key=key.pem
+    #
+    # The chart mounts it read-only at /etc/ovdc/tls and points the application
+    # at /etc/ovdc/tls/tls.crt and /etc/ovdc/tls/tls.key. Those paths are fixed
+    # by the chart and are not configurable.
+    secretName: ""
+
+    # If true, /etc/ovdc/tls/ca.crt is used as the CA root for the TLS cert.
+    # The secret must then also carry a ca.crt key, which `kubectl create
+    # secret tls` does not add — append it with:
+    #
+    #   kubectl create secret generic ovdc-tls \
+    #     --from-file=tls.crt=cert.pem \
+    #     --from-file=tls.key=key.pem \
+    #     --from-file=ca.crt=ca.pem
+    includeCaRoot: false
+
+  # Configuration for JWT for GRPC.
+  grpcJwt:
+    # If true the tonic server will verify JWTs provided to the service.
+    enabled: false
+    # If true, a valid JWT is required for requests to succeed.
+    require: false
+    # Url for public JWK set. The single entry ["debug"] is a special case that
+    # selects a built-in test keyset instead of fetching over HTTP — never use
+    # it outside development.
+    jwkPublicKeysetUrl: []
+    # The amount of time to wait before requesting a JWK set from the given url.
+    jwkUpdateIntervalSecs: 60
+    # The amount of bytes to consume to cache JWTs across connections.
+    cacheSizeMb: 16
+    # When true the aud claim of the token is verified.
+    verifyAud: false
+    # Tokens will be required to have this value as their audience claim.
+    audClaim: ""
+    # When true verifies the expiration time of provided JWT.
+    verifyExp: false
+
+# The Service ports are not configurable here. They are derived from the ports
+# the application actually binds — settings.grpc.port and
+# settings.telemetry.prometheusMetricsPort — so that the Service, the container
+# ports and the probes cannot drift apart. Change those settings instead.
+service:
+  # Annotations applied to both the headless Service and, when loadBalancer is
+  # true, each per-pod LoadBalancer. Values may contain Helm templates.
+  annotations: {}
+  # Create one LoadBalancer Service per pod, allowing an external IP per replica.
+  # One Service is created per replica, named <fullname>-<ordinal>, each
+  # selecting a single pod. The headless Service is created either way.
+  loadBalancer: false
+  # Restricts source IP ranges on the per-pod LoadBalancers.
+  loadBalancerSourceRanges: []
+  # Requests a specific IP for the per-pod LoadBalancers. Deprecated in
+  # Kubernetes 1.24+; prefer a provider-specific annotation above.
+  # A single IP shared by every per-pod Service, so only useful with replicas: 1.
+  loadBalancerIP: ""
+
+# When true, adds prometheus.io scrape annotations to the metrics service.
+prometheusAnnotation: true
+
+# Values for the prometheus.io scrape annotations above. The metrics server
+# ignores the request path and serves metrics on any path, so `path` only needs
+# to match whatever your Prometheus scrape config expects.
+monitoring:
+  path: /metrics
+  scheme: http
+
+# When true the ovdc container's command is replaced with `sleep`, so the
+# service does not run, and an extra <fullname>-debug pod is created with the
+# rendered config.toml mounted at /config for inspection. Development only.
+debug: false

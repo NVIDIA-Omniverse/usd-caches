@@ -1,0 +1,59 @@
+[package]
+name = "tokio-serde"
+version = "0.9.0"
+edition = "2021"
+authors = [
+    "Carl Lerche <me@carllerche.com>",
+    "Artem Vorotnikov <artem@vorotnikov.me>",
+    "Bastian Köcher <git@kchr.de>",
+]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+categories = ["asynchronous", "encoding"]
+keywords = ["async", "serde", "serialization"]
+repository = "https://github.com/carllerche/tokio-serde"
+homepage = "https://github.com/carllerche/tokio-serde"
+documentation = "https://docs.rs/tokio-serde"
+description = """
+Send and receive Serde encodable types over the network using Tokio.
+
+This library is used as a building block for serialization format specific
+libraries.
+"""
+
+[dependencies]
+bytes = "1.0"
+educe = { version = "0.5", optional = true, default-features = false }
+futures-core = "0.3"
+futures-sink = "0.3"
+pin-project = "1"
+serde = { version = "1", optional = true }
+bincode-crate = { package = "bincode", version = "1", optional = true }
+serde_json = { version = "1", optional = true }
+rmp-serde = { version = "1", optional = true }
+serde_cbor = { version = "0.11", optional = true }
+
+[dev-dependencies]
+futures = "0.3"
+impls = "1"
+tokio = { version = "1.0", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+static_assertions = "1.1.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+bincode = ["educe/Debug", "serde", "bincode-crate"]
+json = ["educe/Debug", "educe/Default", "serde", "serde_json"]
+messagepack = ["educe/Debug", "educe/Default", "serde", "rmp-serde"]
+cbor = ["educe/Debug", "educe/Default", "serde", "serde_cbor"]
+
+[[example]]
+name = "client"
+required-features = ["bincode", "cbor", "json", "messagepack"]
+
+[[example]]
+name = "server"
+required-features = ["bincode", "cbor", "json", "messagepack"]

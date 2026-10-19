@@ -1,0 +1,11 @@
+--2024-07-31 16:26:04--  https://raw.githubusercontent.com/udoprog/relative-path/main/LICENSE-APACHE
+Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.110.133, 185.199.109.133, 185.199.108.133, ...
+Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.110.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 10847 (11K) [text/plain]
+Saving to: ‘LICENSE-APACHE’
+
+     0K ..........                                            100% 2.84M=0.004s
+
+2024-07-31 16:26:04 (2.84 MB/s) - ‘LICENSE-APACHE’ saved [10847/10847]
+

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-peer"
+description = "OVCC peer discovery, identity protocol, and streaming client."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bytes.workspace = true
+http.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["client", "http1"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+ovcc-cachekey = { version = "0.1.0", path = "../ovcc-cachekey" }
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+ovcc-tls = { version = "0.1.0", path = "../ovcc-tls" }
+prost.workspace = true
+rustls.workspace = true
+tokio = { workspace = true, features = ["net", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
+tokio-rustls.workspace = true
+tonic = { workspace = true, features = ["transport", "tls-webpki-roots", "tls-aws-lc", "codegen", "router"] }
+tonic-prost.workspace = true
+tower = { workspace = true, features = ["util"] }
+tracing.workspace = true
+webpki-roots.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+ovcc-storage = { path = "../ovcc-storage" }
+rcgen = { workspace = true, features = ["pem"] }
+tempfile.workspace = true
+tokio-stream = { workspace = true, features = ["net"] }
+
+[[bench]]
+name = "peer"
+harness = false
+
+[build-dependencies]
+prost-build.workspace = true
+protoc-bin-vendored.workspace = true
+tonic-prost-build.workspace = true

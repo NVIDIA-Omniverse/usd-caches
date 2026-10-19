@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "usd-local-cache"
+dynamic = ["version"]
+description = "NVIDIA-Omniverse usd-local-cache"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[project.entry-points.console_scripts]
+usd-local-cache = "usd_local_cache:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+usd_local_cache = ["*/**/*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "config.version"} 

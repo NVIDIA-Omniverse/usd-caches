@@ -1,0 +1,34 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{- if and .Values.peer.enabled .Values.service.headless.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.compatFullname" . }}-headless
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+      port: {{ .Values.service.cache.port }}
+      targetPort: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+      protocol: TCP
+    {{- if .Values.nginx.backends.nucleus.include }}
+    - name: nucleus
+      port: {{ .Values.service.nucleus.port }}
+      targetPort: nucleus
+      protocol: TCP
+    {{- end }}
+    {{- if .Values.peer.enabled }}
+    - name: peer
+      port: {{ .Values.service.peer.port }}
+      targetPort: peer
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+{{- end }}

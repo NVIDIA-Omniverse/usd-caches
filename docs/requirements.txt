@@ -1,0 +1,10 @@
+# Documentation toolchain for the usd-caches Sphinx docs.
+#
+# These are floors, not pins: a build resolves to whatever is current. If the docs
+# toolchain ever needs to be reproducible, generate a pinned file with `uv pip compile`.
+
+sphinx>=8.2
+nvidia-sphinx-theme
+myst-parser
+sphinx-copybutton
+sphinx-design

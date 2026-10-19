@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+license = "Apache-2.0"
+name = "ovdc_sharded_map"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+parking_lot.workspace = true
+hashbrown.workspace = true
+seahash.workspace = true
+rand.workspace = true
+
+ovdc_bytes = { path = "../ovdc_bytes" }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "bench_sharded_map"
+harness = false

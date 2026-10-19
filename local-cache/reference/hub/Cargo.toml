@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+description = "NVIDIA Omniverse Hub"
+edition.workspace = true
+keywords.workspace = true
+name = "hub"
+repository.workspace = true
+rust-version.workspace = true
+version = "2.4.0-beta.5"
+
+[[bin]]
+name = "hub"
+path = "src/hub.rs"
+
+[features]
+default = []
+
+[build-dependencies]
+winresource = "0.1.17"
+
+[package.metadata.winresource]
+LegalCopyright = "Copyright © 2023, NVIDIA Corporation"
+
+[dependencies]
+anyhow = { version = "1.0.86", features = ["backtrace"] }
+# https://github.com/Majored/rs-async-zip/issues/86
+async_zip = { version = "0.0.11", features = ["deflate"] }
+axum = { version = "0.7.5", features = ["http2", "json", "macros", "query", "tokio"] }
+bytesize = { version = "1.3.0", features = ["serde"] }
+chrono = "0.4.38"
+clap = { version = "4.5.13", features = ["cargo", "derive", "env"] }
+clap-num = "1.1.1"
+config = "0.13.4"
+etcetera = "0.8.0"
+fd-lock = "4.0.2"
+file-rotate = "0.7.5"
+fnv = "1.0.7"
+futures = "0.3.30"
+hub-cache = { path = "../hub-cache" }
+hub-rpc = { path = "../hub-rpc" }
+hub-util = { path = "../hub-util" }
+prost = { version = "0.14.3" }
+lazy_static = "1.5.0"
+parking_lot = "0.12.3"
+prctl = "1.0.0"
+reqwest = { version = "0.12.5", default-features = false, features = ["blocking"] }
+semver = { version = "1.0.23", features = ["serde"] }
+serde = { version = "1.0.204", features = ["derive", "rc"] }
+serde_json = "1.0.121"
+tempfile = "3.10.1"
+thiserror = "1.0.63"
+tokio = { version = "1.39.2", features = [
+  "fs",
+  "macros",
+  "net",
+  "rt-multi-thread",
+  "signal",
+  "sync",
+  "time",
+] }
+tokio-serde = { version = "0.9.0", features = ["messagepack"] }
+tokio-stream = { version = "0.1.18" }
+tokio-util = { version = "0.7.11", features = ["codec", "compat", "io-util"] }
+tower-http = { version = "0.5.2", features = ["fs"] }
+tracing = { version = "0.1.40", features = ["attributes"] }
+tracing-appender = "0.2.3"
+tracing-subscriber = { version = "0.3.18", default-features = false, features = [
+  "ansi",
+  "env-filter",
+  "fmt",
+  "json",
+  "parking_lot",
+  "smallvec",
+  "std",
+  "time",
+  "valuable",
+] }
+uuid = { version = "1.10.0", features = ["serde", "v4"] }
+walkdir = "2.5.0"
+bytes = "1.11.1"
+
+[dev-dependencies]
+assert_matches = "1.5.0"
+curl = "0.4.46"
+hub-client = { path = "../hub-client", features = ["test"] }
+rlimit = "0.10.1"
+rstest = "0.21.0"
+test-log = { version = "0.2.16", features = ["trace"] }
+tower = { version = "0.4.13", features = ["util"] }

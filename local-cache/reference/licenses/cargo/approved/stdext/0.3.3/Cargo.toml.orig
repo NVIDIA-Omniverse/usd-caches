@@ -1,0 +1,14 @@
+[package]
+name = "stdext"
+version = "0.3.3"
+authors = ["Igor Aleksanov <popzxc@yandex.ru>"]
+edition = "2018"
+repository = "https://github.com/popzxc/stdext-rs"
+documentation = "https://docs.rs/stdext"
+readme = "README.md"
+license = "MIT"
+keywords = ["std", "extensions", "helpers", "utils"]
+categories = ["rust-patterns"]
+description = "Extensions for the Rust standard library structures."
+
+[dependencies]

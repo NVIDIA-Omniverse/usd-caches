@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-local"
+description = "Local OVCC object paths and deadlines."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ovcc-platform = { version = "0.1.0", path = "../ovcc-platform" }
+serde = { workspace = true, features = ["derive"] }
+postcard = { workspace = true, features = ["use-std"] }
+tokio = { workspace = true, features = ["io-util", "net", "sync", "time"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }

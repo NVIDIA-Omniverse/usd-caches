@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-platform"
+description = "OVCC operating-system primitives behind one Linux/Windows API: file identity, directory-relative opens, durable renames, and zero-copy file send."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { workspace = true, features = ["fs", "socket", "uio", "zerocopy"] }
+
+[target.'cfg(windows)'.dependencies]
+rand.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+windows-sys = { workspace = true, features = [
+  "Wdk_Foundation",
+  "Wdk_Storage_FileSystem",
+  "Win32_Foundation",
+  "Win32_Networking_WinSock",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Security_Cryptography",
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Memory",
+  "Win32_System_Pipes",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_SystemServices",
+  "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+criterion.workspace = true
+socket2.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["io-util", "macros", "net", "rt-multi-thread", "time"] }
+
+[[bench]]
+name = "platform"
+harness = false
+
+[dependencies]
+tokio = { workspace = true, features = ["io-util", "net", "time"] }

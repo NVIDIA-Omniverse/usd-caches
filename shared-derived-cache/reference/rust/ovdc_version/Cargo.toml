@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+license = "Apache-2.0"
+name = "ovdc_version"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]

@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-config"
+description = "OVCC configuration: values.yaml schema + layered load (file then env)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+figment = { workspace = true, features = ["yaml", "env"] }
+ovcc-bursty = { version = "0.1.0", path = "../ovcc-bursty" }
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+ovcc-registry = { version = "0.1.0", path = "../ovcc-registry" }
+ovcc-telemetry = { version = "0.1.0", path = "../ovcc-telemetry" }
+regex.workspace = true
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+# `test` enables `figment::Jail` for isolated temp-file + env-var unit tests.
+figment = { workspace = true, features = ["test"] }
+criterion.workspace = true
+
+[[bench]]
+name = "dispatch"
+harness = false

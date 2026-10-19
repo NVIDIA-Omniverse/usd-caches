@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-proxy"
+description = "OVCC tower/hyper reverse-proxy assembly with kTLS sendfile hit path."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+test-optional-keys = ["dep:serde_json", "ovcc-storage/test-fixture-inspection"]
+default = []
+test-fault-injection = [
+  "dep:ovcc-testing",
+  "dep:serde_json",
+  "ovcc-upstream/test-fault-injection",
+]
+
+[dependencies]
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+ovcc-config = { version = "0.1.0", path = "../ovcc-config" }
+ovcc-cachekey = { version = "0.1.0", path = "../ovcc-cachekey" }
+ovcc-blocklist = { version = "0.1.0", path = "../ovcc-blocklist" }
+ovcc-bursty = { version = "0.1.0", path = "../ovcc-bursty" }
+ovcc-registry = { version = "0.1.0", path = "../ovcc-registry" }
+ovcc-nucleus = { version = "0.1.0", path = "../ovcc-nucleus" }
+ovcc-rewrite = { version = "0.1.0", path = "../ovcc-rewrite" }
+ovcc-presigned = { version = "0.1.0", path = "../ovcc-presigned" }
+ovcc-storage = { version = "0.1.0", path = "../ovcc-storage" }
+ovcc-cache = { version = "0.1.0", path = "../ovcc-cache" }
+ovcc-peer = { version = "0.1.0", path = "../ovcc-peer" }
+ovcc-tls = { version = "0.1.0", path = "../ovcc-tls" }
+ovcc-upstream = { version = "0.1.0", path = "../ovcc-upstream" }
+ovcc-telemetry = { version = "0.1.0", path = "../ovcc-telemetry" }
+ovcc-testing = { version = "0.1.0", path = "../ovcc-testing", optional = true }
+# Uses parking_lot for Tokio's internal synchronization.
+tokio = { workspace = true, features = ["io-util", "macros", "net", "parking_lot", "rt-multi-thread", "signal", "sync", "time"] }
+tower.workspace = true
+tower-http.workspace = true
+hyper = { workspace = true, features = ["server", "http1"] }
+hyper-util = { workspace = true, features = ["server", "tokio", "http1"] }
+http.workspace = true
+http-body-util.workspace = true
+bytes.workspace = true
+tracing.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+ovcc-platform = { version = "0.1.0", path = "../ovcc-platform" }
+url.workspace = true
+tonic = { workspace = true, default-features = true, features = ["transport"] }
+tokio-stream = { workspace = true, features = ["sync"] }
+httpdate.workspace = true
+rand.workspace = true
+sha2.workspace = true
+ovcc-auth-cache = { version = "0.1.0", path = "../ovcc-auth-cache" }
+serde_json = { workspace = true, optional = true }
+ovcc-local = { version = "0.1.0", path = "../ovcc-local" }
+
+# Kernel TLS keeps TLS HITs zero-copy; Windows serves TLS through rustls.
+[target.'cfg(target_os = "linux")'.dependencies]
+ktls.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+nix = { workspace = true, features = ["zerocopy"] }
+
+[dev-dependencies]
+rcgen = { workspace = true, features = ["pem"] }
+socket2 = { workspace = true, features = ["all"] }
+tempfile.workspace = true
+criterion.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["process", "test-util"] }
+tokio-stream = { workspace = true, features = ["net"] }
+tracing-subscriber.workspace = true
+
+[[bench]]
+name = "write_through"
+harness = false
+
+[[bench]]
+name = "sendfile"
+harness = false
+
+[[bench]]
+name = "transparent_relay"
+harness = false
+
+[[bench]]
+name = "hit_serve"
+harness = false
+
+[[test]]
+name = "fault_injection"
+path = "tests/fault_injection.rs"
+required-features = ["test-fault-injection"]
+
+[[bench]]
+name = "miss_buffer"
+harness = false

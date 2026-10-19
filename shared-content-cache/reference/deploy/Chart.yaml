@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v2
+name: ovcontentcache
+description: Omniverse Content Cache optimized for immutable assets.
+
+# A chart can be either an 'application' or a 'library' chart.
+#
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+#
+# Library charts provide useful utilities or functions for the chart developer. They're included as
+# a dependency of application charts to inject those utilities and functions into the rendering
+# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+type: application
+
+# This chart follows Semantic Versioning (https://semver.org/).
+#
+# The 'version' below is the version of this Helm chart. It should be
+# incremented for any change to the chart's templates, default values, or
+# metadata.
+#
+# The 'appVersion' is the version of the application container that this
+# chart deploys. It should only be updated when a new version of the
+# application has been released.
+version: 4.0.4
+appVersion: "3.0.2"

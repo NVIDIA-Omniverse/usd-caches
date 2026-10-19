@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovdc"
+version = "0.1.0"
+edition = "2021"
+description = "A persistent key-value store that acts as both a cache and database."
+license = "Apache-2.0"
+repository = "https://github.com/NVIDIA-Omniverse/usd-caches-internal/tree/main/shared-derived-cache/reference"
+publish = false
+
+[dependencies]
+tokio-stream.workspace = true
+futures.workspace = true
+socket2.workspace = true
+tower-http.workspace = true
+tower.workspace = true
+rustls.workspace = true
+rustls-pki-types.workspace = true
+tokio-rustls.workspace = true
+
+hyper.workspace = true
+hyper-util.workspace = true
+
+ovdc_lru = { path = "../ovdc_lru" }
+ovdc_gc = { path = "../ovdc_gc" }
+ovdc_map = { path = "../ovdc_map" }
+ovdc_bytes = { path = "../ovdc_bytes" }
+ovdc_settings = { path = "../ovdc_settings" }
+ovdc_trace = { path = "../ovdc_trace" }
+ovdc_grpc = { path = "../ovdc_grpc" }
+ovdc_jwt = { path = "../ovdc_jwt" }
+ovdc_version = { path = "../ovdc_version" }
+
+tonic-health.workspace = true
+http.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+rand.workspace = true
+bytes.workspace = true
+parking_lot.workspace = true
+tonic.workspace = true
+serde.workspace = true
+seahash.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk = { workspace = true, features = ["experimental_metrics_custom_reader"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+
+[build-dependencies]
+ovdc_attributions = { path = "../ovdc_attributions" }
+
+[dev-dependencies]
+hdrhistogram = { workspace = true, features = ["sync"] }
+toml_edit.workspace = true
+tempfile.workspace = true

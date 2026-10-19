@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Values for open-telemetry/opentelemetry-collector chart 0.175.1.
+mode: deployment
+fullnameOverride: ovdc-otel-collector
+image:
+  repository: otel/opentelemetry-collector
+  tag: "0.161.0"
+command:
+  name: otelcol
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+ports:
+  otlp-http:
+    enabled: false
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    prometheus: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http: null
+  exporters:
+    debug:
+      verbosity: detailed
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+      logs:
+        receivers: [otlp]
+      metrics:
+        receivers: [otlp]
+# Retain the chart's health_check extension, memory_limiter and batch processors.

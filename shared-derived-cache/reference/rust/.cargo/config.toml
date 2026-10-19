@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[build]
+rustflags = ["--cfg", "tokio_unstable"]
+rustdocflags = ["--cfg", "tokio_unstable"]
+
+[source.crates-io]
+#replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

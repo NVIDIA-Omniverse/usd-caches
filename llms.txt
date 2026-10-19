@@ -1,0 +1,34 @@
+# usd-caches
+
+usd-caches is the caching layer of Omniverse Content Services: a local cache (Hub) for each workstation or compute node, a shared content cache (ovcontentcache, OVCC) in front of S3, Azure Blob Storage, GCS, and Nucleus, and a shared derived-data cache (ovderivedcache, OVDC) for derived data shared across workers.
+
+## Primary Docs
+
+- README.md: product overview, interface contracts, build and deployment, NGC releases, licensing
+- AGENTS.md: coding-agent guide, expert role, ground rules, NGC links, repo layout, skill routing
+- skills/usd-caches-expert/SKILL.md: expert skill for choosing, building, deploying, configuring, calling, and validating caches
+- docs/index.rst: Sphinx docs entrypoint
+
+## Core Workflows
+
+- Choosing caches: skills/usd-caches-expert/references/choosing-caches.md
+- Local cache: skills/usd-caches-expert/references/local-cache/README.md
+- Shared content cache: skills/usd-caches-expert/references/shared-content-cache/README.md
+- Shared derived-data cache: skills/usd-caches-expert/references/shared-derived-cache/README.md
+- Kit and ovstorage hub_cache integration: skills/usd-caches-expert/references/integrations.md
+- Related experts (usd-content-workspace, ovstorage, ovpackage, ovlive): skills/usd-caches-expert/references/related-experts.md
+
+## Prebuilt Releases
+
+- Hub collection: https://catalog.ngc.nvidia.com/orgs/nvidia/omniverse/collections/hub-workstation-cache/-
+- Caching Services collection (OVCC as "UCC", OVDC as "DDCS"): https://catalog.ngc.nvidia.com/orgs/nvidia/omniverse/collections/omniverse-cache-services/-
+- OVCC Helm chart: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/omniverse/helm-charts/ovcontentcache
+- OVDC Helm chart: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/omniverse/helm-charts/ovderivedcache
+- Helm repository: https://helm.ngc.nvidia.com/nvidia/omniverse (requires an NGC API key)
+
+## Constraints
+
+- Agents explain and recommend by default; build, install, or deploy only when asked.
+- In a cluster, both shared caches deploy through their Helm charts on Kubernetes.
+- The shared content cache's values.yaml is its only supported configuration interface.
+- shared-derived-cache/ is produced by an automated public export; change it upstream.

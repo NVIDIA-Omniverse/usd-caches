@@ -1,0 +1,169 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package ovdc;
+
+// A 32 byte fixed size key.
+// Each uint64 is converted to big-endian bytes and concatenated to compose the key.
+//
+// Protobuf type system does not provide fixed sized arrays. Using this type prevents the need for
+// the client and server to allocate a heap object for each key.
+//
+// The client can choose to use variable length heap allocated structure instead. See `Key`.
+message S32Key {
+    uint64 u0 = 1;
+    uint64 u1 = 2;
+    uint64 u2 = 3;
+    uint64 u3 = 4;
+}
+
+// A single key that is represented by a fixed sized `S32Key` or a `bytes` key of max length 32 bytes.
+// Keys may be shorter than 32 bytes but not longer.
+//
+// This is provided as an optimization so that (in some languages) a heap allocated buffer does not
+// need to be created for each key.
+message Key {
+    // Either a fixed size 32byte key composed of 4 u64;
+    // OR a variable length (max 32 byte) key.
+    oneof inner {
+        S32Key fixed_key = 1;
+        bytes key = 2;
+    }
+}
+
+// A GRPC get operation.
+message GetRequest {
+  // The subset of keys to search this database for.
+  // The number of keys must match with the number of tags.
+  //
+  // It is encouraged to sort the keys but not required.
+  repeated Key keys = 3;
+}
+
+// A value and its corresponding tag.
+//
+// This message will contain the requested value. It may be partial, and the requestor may need to wait
+// for multiple `GetUnorderedResponse` until `size` bytes have arrived for the entry.
+message GetUnorderedResponse {
+    // The index of the key in the original request.
+    uint32 tag = 1;
+
+    // The value.
+    bytes value = 2;
+
+    // The size of the value.
+    uint64 size = 3;
+}
+
+// This is the first message that must be sent when opening any GRCP put stream.
+// This message instructs the service on how to treat the written values or when to apply
+// properties like TTL.
+message PutOpen {
+    // An optional time to live in milliseconds for all keys in the put request.
+    optional uint64 ttl = 2;
+
+    // Specify how the service should treat writes of the value.
+    optional Durability durability = 3;
+
+    enum Durability {
+        // Under low durability, the write does not got a WAL.
+        //
+        // This is the default durability level.
+        Low = 0;
+        // Under normal durability, the write goes to a WAL.
+        Normal = 1;
+    }
+}
+
+// Declares a key and value of a given size.
+//
+// This message is used in a put stream to indicate that a key-value pair will be sent
+// in multiple parts.
+//
+// See `PutRequest` for when to use this message or `PutPair`.
+message PutDeclare {
+    // The key to put in the database.
+    Key key = 1;
+
+    // The size of the value that will be written.
+    uint64 size = 2;
+
+    // The partial or entire value for the put.
+    bytes value = 3;
+}
+
+// The message type used in the GRPC put stream. This message indicates the type of operation
+// be performed. It allows a value to split and sent in parts or whole.
+//
+// All streams must begin with `PutOpen`. This must be the first message in the stream, to
+// "open" the stream.
+//
+// The GRPC server imposes a limit on the amount of data that can be decoded in a single message.
+// This limit is 4MB.
+// Due to some limitations of the storage backend it is beneficial in many ways to stream a value
+// in parts when it is large.
+//
+// If a value is larger than 4MB then it must be split. When a value is split, the client must first
+// declare the intent to write a large value with `PutDeclare`. The client can then split the value
+// as it sees fit within the 4MB allowance.
+// The client must send `PutRequest::kind::value` until all bytes declared in `PutDeclare` are written. If
+// the client sends more bytes, the service will end the stream with an error.
+message PutRequest {
+    oneof kind {
+        // This message must be first and only sent once.
+        PutOpen begin = 1;
+
+        // Use this message to declare the intent to send a larger value split in multiple
+        // part.
+        // Once a value is declared, the client must send exactly the number of bytes declared.
+        PutDeclare declare = 2;
+
+        // Use this message to send part of a value that was already declared.
+        bytes value = 3;
+    }
+}
+
+message PutResponse {
+    PutStatus status = 1;
+    optional uint32 index = 2;
+
+    enum PutStatus {
+        PUT_OK = 0;
+        ERROR_CONCURRENT_WRITE = 1;
+    }
+}
+
+// Touch allows a client to check for the existence of key(s) and indicate that a client
+// may be imminently interested in retrieving the key(s).
+//
+// This operation marks the given keys as recently accessed in the LRU of the service. This
+// makes the keys less likely to be removed during a GC event.
+message TouchRequest {
+    // The keys to touch.
+    repeated Key keys = 2;
+}
+
+// The response to a touch operation. Returns the number of keys that were found.
+message TouchResponse {
+    // The number of keys that existed.
+    uint32 touched = 1;
+
+    // The indices that were matched.
+    repeated uint32 matched = 2;
+}
+
+// Defines the interface for an OVDC key-value service.
+//
+// This interface allows a client to get, put, or touch values.
+service KeyValue {
+    // Get the requested keys from the service as a stream. See also `GetRequest`.
+    rpc Get(GetRequest) returns (stream GetUnorderedResponse);
+
+    // Write entries into the DB using a GRPC stream. See also `PutRequest`.
+    rpc Put(stream PutRequest) returns (stream PutResponse);
+
+    // Touch a set of keys, updating the last accessed time and return the number of keys
+    // that existed. See also `TouchRequest`.
+    rpc Touch(TouchRequest) returns (TouchResponse);
+}

@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+license = "Apache-2.0"
+name = "ovdc_grpc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+prost.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+
+ovdc_bytes = { path = "../ovdc_bytes", version = "0.1" }
+
+[build-dependencies]
+tonic-prost-build.workspace = true

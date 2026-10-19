@@ -1,0 +1,44 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{ if and (.Values.otel.enabled) (.Values.otel.sidecar) }}
+
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-sidecar-{{ include "chart.fullname" . }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": "pre-install, pre-upgrade"
+spec:
+  mode: sidecar
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: {}
+    processors:
+      batch:
+        {{- if .Values.otel.collector.batch }}
+        {{- with .Values.otel.collector.batch }}
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- else }}
+        {}
+        {{- end }}
+
+    exporters:
+      otlp/ls:
+        {{- with .Values.otel.collector.export.otlp }}
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/ls]
+{{ end }}

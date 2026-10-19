@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Keeps the Docker build context small and reproducible: the image builds the
+# workspace from source against Cargo.lock, so vendored caches and build output
+# must not be shipped into the context.
+.cargo-home/
+target/
+**/target/

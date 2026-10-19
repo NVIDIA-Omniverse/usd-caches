@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# A single registry deployment with host-scoped credential and session bypass.
+# Replace the Artifactory hosts with the hosts used by the deployment. Docker
+# token realms on other hosts must be inventoried separately.
+nginx:
+  backends:
+    registry:
+      include: true
+      matching: any
+      requiresVersioning: false
+      upstreams:
+        - name: artifactory
+          hosts: [artifactory.example.com, docker.artifactory.example.com]
+          cacheableUri: |-
+            !~ (?x)
+            ^/
+            (?:
+              v2/(?:\?|$|token(?:\?|$)|[^/?]+/token(?:\?|$)|[^?]+/blobs/uploads(?:/|\?|$))
+              | (?:artifactory/)?api/docker/(?:v2/(?:\?|$)|[^/?]+/v[12]/(?:token|auth)(?:\?|$))
+              | artifactory/api/npm/auth/(?:\?|$)
+              | artifactory/api/npm/[^/?]+/-/(?:whoami(?:\?|$)|npm/v1/tokens(?:/|\?|$))
+              | (?:artifactory/)?api/conan/[^/?]+/v[12]/users/(?:authenticate|check_credentials)(?:\?|$)
+              | access/api/v1/tokens(?:/|\?|$)
+              | artifactory/api/security/token(?:/|\?|$)
+            )
+        - name: npm
+          hosts: [registry.npmjs.org]
+          cacheableUri: '!~ ^/-/(?:whoami(?:\?|$)|npm/v1/tokens(?:/|\?|$)|v1/login(?:/|\?|$)|user/org[.]couchdb[.]user:)'
+        - name: conan
+          hosts: [center2.conan.io]
+          cacheableUri: '!~ ^/v[12]/users/(?:authenticate|check_credentials)(?:\?|$)'
+        - name: pip
+          hosts: [pypi.org, files.pythonhosted.org]
+          contentRewrite:
+            - uriStartsWith: /simple/
+              types:
+                - application/vnd.pypi.simple.v1+json
+                - text/html
+              substitute:
+                match: "https://files.pythonhosted.org"
+                replace: 'http://files.pythonhosted.org.{{ include "func.registryCacheSuffix" . }}:{{ .Values.service.cache.port }}'
+        - name: apt
+          hosts: [developer.download.nvidia.com]

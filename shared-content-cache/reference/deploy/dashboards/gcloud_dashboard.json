@@ -1,0 +1,2497 @@
+{
+  "displayName": "Omniverse Content Cache",
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "yPos": 0,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Glance",
+          "sectionHeader": {
+            "subtitle": "Is OVCC alive and healthy? CPU stays a compact guardrail \u2014 network and I/O dominate read/write paths."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 1,
+        "width": 2,
+        "height": 4,
+        "widget": {
+          "title": "Connections",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(cc_nginx_http_connections)"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 2,
+        "yPos": 1,
+        "width": 2,
+        "height": 4,
+        "widget": {
+          "title": "Hit Ratio %",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"HIT\"}[5m])) / clamp_min(sum(increase(cc_http_requests_total[5m])), 1) * 100"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 1,
+        "width": 2,
+        "height": 4,
+        "widget": {
+          "title": "Req/s (5m avg)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(cc_http_requests_total[5m]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 1,
+        "width": 2,
+        "height": 4,
+        "widget": {
+          "title": "Response p99 (ms)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "histogram_quantile(0.99, sum by(le) (rate(cc_request_duration_seconds_bucket[5m]))) * 1000"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 1,
+        "width": 2,
+        "height": 4,
+        "widget": {
+          "title": "Node CPU %",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(kubernetes_io:node_cpu_core_usage_time[5m])) / sum(machine_cpu_cores) * 100"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 10,
+        "yPos": 1,
+        "width": 2,
+        "height": 4,
+        "widget": {
+          "title": "Network Gbps",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(kubernetes_io:node_network_received_bytes_count[5m])) * 8 / 1e9"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 5,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Triage",
+          "sectionHeader": {
+            "subtitle": "Which path is unhealthy? Empty panels may be mode-specific (PVC, OpenResty-only, Rust-only, or burst/run-total)."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 6,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Scrape polls/s (5m)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(cc_metric_poll_total[5m]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 2,
+        "yPos": 6,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Client 5xx/s (5m)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(cc_http_requests_total{http_status=~\"5..\"}[5m]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 6,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Read p95 (ms)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_request_duration_seconds_bucket[5m]))) * 1000"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 6,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Response egress MiB/s (1m)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(cc_response_size_bytes_sum[1m])) / 1048576"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 6,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Peer tier share % (5m)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(cc_request_tier_total{cache_tier=\"peer\"}[5m])) / clamp_min(sum(increase(cc_request_tier_total[5m])), 1) * 100"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 10,
+        "yPos": 6,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Active write-through",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(cc_write_through_active_uploads)"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 9,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "PVC write MiB/s (1m)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(compute_googleapis_com:instance_disk_write_bytes_count{device_name=~\"pvc-.*\"}[1m])) / 1048576"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 2,
+        "yPos": 9,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "Upstream connect p95 (ms)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_upstream_connect_time_seconds_bucket[5m]))) * 1000"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 9,
+        "width": 2,
+        "height": 3,
+        "widget": {
+          "title": "OVCC CPU cores (5m)",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(rate(container_cpu_usage_seconds_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[5m]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 9,
+        "width": 4,
+        "height": 3,
+        "widget": {
+          "title": "Storage mode",
+          "text": {
+            "content": "**Ephemeral/local SSD** (`persistence.mode=ephemeral`): use the first **Storage** panels. The node pool determines whether `emptyDir` is actually backed by Local SSD.\n\n**PVC-backed** (`persistence.mode=pvc`): use the PVC panels later in **Storage**.\n\n**Relay-only peer** (`peer.replicate=false`): peer fill/write panels may stay near zero while serve/tier panels move.",
+            "format": "MARKDOWN"
+          }
+        }
+      },
+      {
+        "yPos": 12,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Read Path",
+          "sectionHeader": {
+            "subtitle": "Local HIT and peer relay are network-bound (`sendfile` keeps disk off the hot path). Rust-only peer panels stay empty on OpenResty."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 13,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Hit / Miss / Bypass (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "HIT",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"HIT\"}[5m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "MISS",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"MISS\"}[5m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "BYPASS",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"BYPASS\"}[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 13,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Cache Status % (HIT / MISS / BYPASS)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "HIT %",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"HIT\"}[5m])) / clamp_min(sum(increase(cc_http_requests_total[5m])), 1) * 100"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "MISS %",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"MISS\"}[5m])) / clamp_min(sum(increase(cc_http_requests_total[5m])), 1) * 100"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "BYPASS %",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_http_requests_total{cache_status=\"BYPASS\"}[5m])) / clamp_min(sum(increase(cc_http_requests_total[5m])), 1) * 100"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 13,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Requests by Host (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(http_host) (increase(cc_http_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 17,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Request Time Percentiles (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p50",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.5, sum by(le) (rate(cc_request_duration_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p95",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_request_duration_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p99",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.99, sum by(le) (rate(cc_request_duration_seconds_bucket[5m]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 17,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Requests/Second (5m rate, smoothed \u2014 burst peaks appear lower than actual)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "req/s",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_http_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 21,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Requests/Second (1m burst)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_http_requests_total[1m]))"
+                },
+                "legendTemplate": "req/s"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 21,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Requests by HTTP Status (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(http_status) (increase(cc_http_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 25,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Requests by Method (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(request_method) (increase(cc_http_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 25,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Response egress MiB/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_response_size_bytes_sum[5m])) / 1048576"
+                },
+                "legendTemplate": "5m smoothed"
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_response_size_bytes_sum[1m])) / 1048576"
+                },
+                "legendTemplate": "1m burst"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 29,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Cacheable MISS Tier/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(cache_tier) (rate(cc_request_tier_total[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 29,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Peer Attempt Outcomes/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(stage, outcome) (rate(cc_peer_attempt_total[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 29,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Peer Directory and In-flight Probes",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "directory peers",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_directory_peers)"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "in-flight probes",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_probe_in_flight)"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 33,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Attempt p95 (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le, stage, outcome) (rate(cc_peer_attempt_seconds_bucket[5m]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 33,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Probe p95 (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le, result) (rate(cc_peer_probe_seconds_bucket[5m]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 37,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Probes and Loser Cancellations/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_peer_probe_total[1m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "cancelled losers",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_peer_probe_cancellations_total[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 37,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Body Serve Outcomes/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_peer_serve_total[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 41,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Active Peer Body Serves",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_serves_active)"
+                },
+                "legendTemplate": "active"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 41,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Body Serve Throughput (MiB/s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_peer_serve_bytes_total[1m])) / 1048576"
+                },
+                "legendTemplate": "egress"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 45,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Socket-Writability Wait p95 (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_peer_serve_socket_writable_wait_seconds_bucket[5m]))) * 1000"
+                },
+                "legendTemplate": "p95"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 45,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Collapsed Peer Followers",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_fill_followers_active)"
+                },
+                "legendTemplate": "active"
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y2",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_peer_fill_follower_requests_total[1m]))"
+                },
+                "legendTemplate": "{{result}}/s"
+              }
+            ],
+            "yAxis": {
+              "label": "active followers",
+              "scale": "LINEAR"
+            },
+            "y2Axis": {
+              "label": "terminal requests/s",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 49,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Collapsed Follower Throughput (MiB/s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_peer_fill_follower_bytes_total[1m])) / 1048576"
+                },
+                "legendTemplate": "local follower egress"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 49,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Collapsed Follower Totals (since pod start)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (cc_peer_fill_follower_requests_total)"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y2",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_fill_follower_bytes_total) / 1048576"
+                },
+                "legendTemplate": "MiB served"
+              }
+            ],
+            "yAxis": {
+              "label": "terminal requests",
+              "scale": "LINEAR"
+            },
+            "y2Axis": {
+              "label": "MiB served",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 53,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-pod Collapsed Follower MiB/s (top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod) (rate(cc_peer_fill_follower_bytes_total[1m]))) / 1048576"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 53,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-pod req/s (top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod) (rate(cc_http_requests_total[5m])))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 57,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-pod Active Peer Serves (top 10, Rust)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod) (cc_peer_serves_active))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 57,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-pod Peer Serve MiB/s (top 10, Rust)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod) (rate(cc_peer_serve_bytes_total[1m]))) / 1048576"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 61,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer attempt totals (since pod start)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(stage, outcome) (cc_peer_attempt_total)"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 61,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer probe totals (since pod start, Rust)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (cc_peer_probe_total)"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_probe_cancellations_total)"
+                },
+                "legendTemplate": "cancelled losers"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 65,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer attempt p95 since pod start (24h window, Rust)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le, stage, outcome) (increase(cc_peer_attempt_seconds_bucket[24h]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 65,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer probe p95 since pod start (24h window, Rust)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le, result) (increase(cc_peer_probe_seconds_bucket[24h]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 69,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Write Path",
+          "sectionHeader": {
+            "subtitle": "Write-through, origin admission, and replicated peer fills are storage- and origin-bound. Relay-only peer hits stay in Read Path."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 70,
+        "width": 3,
+        "height": 4,
+        "widget": {
+          "title": "Active Uploads",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_write_through_active_uploads)"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 3,
+        "yPos": 70,
+        "width": 5,
+        "height": 4,
+        "widget": {
+          "title": "Write-through Outcomes/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_write_through_requests_total{result!~\"block.*\"}[1m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "block PUTs (right)",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y2",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_write_through_requests_total{result=~\"block.*\"}[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "label": "commits + object PUTs/s",
+              "scale": "LINEAR"
+            },
+            "y2Axis": {
+              "label": "block PUTs/s",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 74,
+        "width": 5,
+        "height": 4,
+        "widget": {
+          "title": "Write-through Outcomes/s (1m burst)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_write_through_requests_total{result!~\"block.*\"}[1m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_write_through_requests_total{result=~\"block.*\"}[1m]))"
+                },
+                "legendTemplate": "block PUTs"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 5,
+        "yPos": 74,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "OVCC Memory (GiB)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(pod_name) (kubernetes_io:container_memory_used_bytes{container_name=\"ovcc\", pod_name=~\".*ovcc.*\"}) / 1073741824"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 78,
+        "width": 8,
+        "height": 4,
+        "widget": {
+          "title": "Write-through Phase p95 (seconds)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Upload",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_write_through_upload_seconds_bucket[5m])))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Seed",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_write_through_seed_seconds_bucket[5m])))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Adopt",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_write_through_adopt_seconds_bucket[5m])))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Block-list commit",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_write_through_blocklist_seconds_bucket[5m])))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Block PUT",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_write_through_block_seconds_bucket[5m])))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 78,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Committed Segments p95",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_write_through_segments_bucket[5m])))"
+                }
+              }
+            ],
+            "yAxis": {
+              "label": "segments/object",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 82,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Fill and Serve Outcomes/s",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "fill {{result}}",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_peer_fill_total[1m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "serve {{result}}",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (rate(cc_peer_serve_total[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 82,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Fill Throughput (MiB/s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_peer_fill_bytes_total[1m])) / 1048576"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 86,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer Fill p95 (seconds)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_peer_fill_seconds_bucket[5m])))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 86,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer fill totals (since pod start, Rust replicate)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(result) (cc_peer_fill_total)"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(cc_peer_fill_bytes_total) / 1048576"
+                },
+                "legendTemplate": "fill MiB total"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 90,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Peer fill p95 since pod start (24h window, Rust replicate)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (increase(cc_peer_fill_seconds_bucket[24h])))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 90,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-pod peer fill MiB/s (top 10, Rust replicate)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod) (rate(cc_peer_fill_bytes_total[1m]))) / 1048576"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 94,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Network",
+          "sectionHeader": {
+            "subtitle": "Primary read-path saturation signal. Client/origin nodes are not folded into OVCC server totals."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 95,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Network RX (MB/s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Received",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(kubernetes_io:node_network_received_bytes_count[5m])) / 1e6"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 95,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Network TX (MB/s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Sent",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(kubernetes_io:node_network_sent_bytes_count[5m])) / 1e6"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 99,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-node RX MB/s (top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(node) (rate(kubernetes_io:node_network_received_bytes_count[5m]))) / 1e6"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 99,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-node TX MB/s (top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(node) (rate(kubernetes_io:node_network_sent_bytes_count[5m]))) / 1e6"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 103,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Storage",
+          "sectionHeader": {
+            "subtitle": "Mode-aware: ephemeral/local panels measure `emptyDir` usage and OVCC pod I/O; PVC panels remain for persistent deployments."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 104,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Ephemeral Cache Used (GiB, top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod_name, volume_name) (kubernetes_io:pod_volume_used_bytes{pod_name=~\".*ovcc.*\", volume_name!~\"kube-api-access-.*|tls\"})) / 1073741824"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 104,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Node Ephemeral Storage Used % (top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, 100 * kubernetes_io:node_ephemeral_storage_used_bytes / clamp_min(kubernetes_io:node_ephemeral_storage_allocatable_bytes, 1))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 108,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Ephemeral OVCC Throughput (MiB/s, top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod, device) (rate(container_fs_reads_bytes_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[1m]))) / 1048576"
+                },
+                "legendTemplate": "Read {{pod}} {{device}}"
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod, device) (rate(container_fs_writes_bytes_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[1m]))) / 1048576"
+                },
+                "legendTemplate": "Write {{pod}} {{device}}"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 108,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Ephemeral OVCC IOPS (top 10)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod, device) (rate(container_fs_reads_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[1m])))"
+                },
+                "legendTemplate": "Read {{pod}} {{device}}"
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(pod, device) (rate(container_fs_writes_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[1m])))"
+                },
+                "legendTemplate": "Write {{pod}} {{device}}"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 112,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Volume Used vs Capacity (GiB)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Capacity",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~\".*ovcc.*\"}) / 1024 / 1024 / 1024"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Used",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~\".*ovcc.*\"} - kubelet_volume_stats_available_bytes{persistentvolumeclaim=~\".*ovcc.*\"}) / 1024 / 1024 / 1024"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 112,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Volume Free (%)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Free %",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(kubelet_volume_stats_available_bytes{persistentvolumeclaim=~\".*ovcc.*\"}) / sum(kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~\".*ovcc.*\"}) * 100"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 116,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "PVC Throughput (MiB/s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Read {{device_name}}",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(device_name) (rate(compute_googleapis_com:instance_disk_read_bytes_count{device_name=~\"pvc-.*\"}[1m])) / 1048576"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Write {{device_name}}",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(device_name) (rate(compute_googleapis_com:instance_disk_write_bytes_count{device_name=~\"pvc-.*\"}[1m])) / 1048576"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 116,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Provisioned IOPS Utilization (%)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "100 * sum by(device_name) (rate(compute_googleapis_com:instance_disk_read_ops_count{device_name=~\"pvc-.*\"}[1m]) + rate(compute_googleapis_com:instance_disk_write_ops_count{device_name=~\"pvc-.*\"}[1m])) / max by(device_name) (compute_googleapis_com:instance_disk_provisioning_iops{device_name=~\"pvc-.*\"})"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 120,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "PVC IOPS",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(device_name) (rate(compute_googleapis_com:instance_disk_read_ops_count{device_name=~\"pvc-.*\"}[1m]) + rate(compute_googleapis_com:instance_disk_write_ops_count{device_name=~\"pvc-.*\"}[1m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 120,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "I/O Queue Depth",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "max by(device_name) (compute_googleapis_com:instance_disk_average_io_queue_depth{device_name=~\"pvc-.*\"})"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 120,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "I/O Latency (\u00b5s)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "max by(device_name) (compute_googleapis_com:instance_disk_average_io_latency{device_name=~\"pvc-.*\"})"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 124,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "Disk Performance Status",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "max by(device_name, performance_status) (compute_googleapis_com:instance_disk_performance_status{device_name=~\"pvc-.*\"})"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 128,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Per-device write MiB/s (top 10 PVC)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(device_name) (rate(compute_googleapis_com:instance_disk_write_bytes_count{device_name=~\"pvc-.*\"}[1m]))) / 1048576"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 132,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Upstream",
+          "sectionHeader": {
+            "subtitle": "Origin fallback dependency \u2014 connect, header/TTFB, response latency, and upstream request mix."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 133,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Upstream Response Time Percentiles (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p50",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.5, sum by(le) (rate(cc_upstream_response_time_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p95",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_upstream_response_time_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p99",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.99, sum by(le) (rate(cc_upstream_response_time_seconds_bucket[5m]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 133,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Upstream Connect Time Percentiles (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p50",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.5, sum by(le) (rate(cc_upstream_connect_time_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p95",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_upstream_connect_time_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p99",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.99, sum by(le) (rate(cc_upstream_connect_time_seconds_bucket[5m]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 137,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Upstream Header/TTFB Percentiles (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.5, sum by(le) (rate(cc_upstream_header_time_seconds_bucket[5m]))) * 1000"
+                },
+                "legendTemplate": "p50"
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_upstream_header_time_seconds_bucket[5m]))) * 1000"
+                },
+                "legendTemplate": "p95"
+              },
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.99, sum by(le) (rate(cc_upstream_header_time_seconds_bucket[5m]))) * 1000"
+                },
+                "legendTemplate": "p99"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 137,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Connections Made (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Total",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_upstream_connect_time_seconds_count[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 141,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Upstream Requests by Host (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(http_host) (increase(cc_http_upstream_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 141,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Upstream Requests by Method (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(request_method) (increase(cc_http_upstream_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 145,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Upstream Requests/s (1m burst)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(cc_http_upstream_requests_total[1m]))"
+                },
+                "legendTemplate": "upstream req/s"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 145,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Origin tier share % (5m, Rust)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(increase(cc_request_tier_total{cache_tier=\"origin\"}[5m])) / clamp_min(sum(increase(cc_request_tier_total[5m])), 1) * 100"
+                },
+                "legendTemplate": "origin %"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 149,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "Access",
+          "sectionHeader": {
+            "subtitle": "Upstream authorization probes and mutation checks; empty when no access probe runs."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 150,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Access Top 10 Hosts (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "topk(10, sum by(http_host, http_method) (increase(cc_access_requests_total[5m])))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 150,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Access Upstream Time Percentiles (ms)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p50",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.5, sum by(le) (rate(cc_access_upstream_request_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p95",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by(le) (rate(cc_access_upstream_request_seconds_bucket[5m]))) * 1000"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "p99",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.99, sum by(le) (rate(cc_access_upstream_request_seconds_bucket[5m]))) * 1000"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 154,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Subrequests Response Rates (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(http_status) (increase(cc_access_responses_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 154,
+        "width": 3,
+        "height": 4,
+        "widget": {
+          "title": "Mutation Detection Purges (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(http_host) (increase(cc_mutation_detection_purges_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 9,
+        "yPos": 154,
+        "width": 3,
+        "height": 4,
+        "widget": {
+          "title": "Access Checks by Method (per 5m)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by(http_method) (increase(cc_access_requests_total[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "yPos": 158,
+        "width": 12,
+        "height": 1,
+        "widget": {
+          "title": "System Context",
+          "sectionHeader": {
+            "subtitle": "Node-level guardrails. OVCC CPU usually stays below ~10%; use this section for capacity context, not primary diagnosis."
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 159,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Node CPU (cores)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Used",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(kubernetes_io:node_cpu_core_usage_time[5m]))"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "legendTemplate": "Capacity",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(machine_cpu_cores)"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 4,
+        "yPos": 159,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "OVCC CPU cores (5m avg)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(container_cpu_usage_seconds_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[5m]))"
+                },
+                "legendTemplate": "used"
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 8,
+        "yPos": 159,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "CPU throttling periods/s (optional context)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(rate(container_cpu_cfs_throttled_periods_total{container=\"ovcc\", pod=~\".*ovcc.*\"}[5m]))"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 163,
+        "width": 4,
+        "height": 4,
+        "widget": {
+          "title": "Unschedulable pods (kube-state)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "minAlignmentPeriod": "60s",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum(kube_pod_status_unschedulable{condition=\"true\"})"
+                }
+              }
+            ],
+            "yAxis": {
+              "scale": "LINEAR"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

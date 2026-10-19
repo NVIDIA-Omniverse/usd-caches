@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+rust/target/
+rust/debug/
+**/*.rs.bk
+*.bak
+*.pbd
+*.DS_Store
+.idea
+_build/
+**/.ipynb_checkpoints
+.ci_render
+**/.venv/
+.build/
+.claude/
+
+# Python bytecode (e.g. scripts/build/modules/__pycache__/oci_client.cpython-311.pyc)
+**/__pycache__/
+**/*.py[cod]

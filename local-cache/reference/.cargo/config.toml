@@ -1,0 +1,10 @@
+[env]
+# you can set the tracing level, globally or by module. below is an example. if RUST_LOG is set here,
+# anytime cargo is run like `cargo test` or `cargo run`, the env var will be set automatically
+# RUST_LOG = "info,hub=trace,hub_cache=trace,hub_client=trace,hub_rpc=trace,hub_util=trace"
+
+[net]
+git-fetch-with-cli = true
+
+[registries.crates-io]
+protocol = "sparse"

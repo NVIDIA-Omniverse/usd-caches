@@ -1,0 +1,95 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.compatFullname" . }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+{{- if .Values.service.cache.annotations }}
+  annotations:
+  {{- with .Values.service.cache.annotations -}}
+  {{ toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+spec:
+  type: {{ .Values.service.cache.type }}
+  {{- if .Values.service.cache.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.service.cache.loadBalancerIP }}
+  {{- end }}
+  {{- if and .Values.featureFlags.useRoundRobinLoadBalancing (or (eq .Values.service.cache.type "LoadBalancer") (eq .Values.service.cache.type "NodePort")) }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  {{- if .Values.featureFlags.enableSessionAffinity }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: {{ .Values.featureFlags.sessionAffinityTimeoutSeconds }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.cache.port }}
+      targetPort: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+      protocol: TCP
+      name: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+
+{{- if .Values.nginx.backends.nucleus.include }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.compatFullname" . }}-nucleus
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+{{- if .Values.service.nucleus.annotations }}
+  annotations:
+  {{- with .Values.service.nucleus.annotations -}}
+  {{ toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+spec:
+  type: {{ .Values.service.nucleus.type }}
+  {{- if .Values.service.nucleus.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.service.nucleus.loadBalancerIP }}
+  {{- end }}
+  {{- if and .Values.featureFlags.useRoundRobinLoadBalancing (or (eq .Values.service.nucleus.type "LoadBalancer") (eq .Values.service.nucleus.type "NodePort")) }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  {{- if .Values.featureFlags.enableSessionAffinity }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: {{ .Values.featureFlags.sessionAffinityTimeoutSeconds }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.nucleus.port }}
+      targetPort: nucleus
+      protocol: TCP
+      name: nucleus
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+{{- end }}
+
+{{- if $.Values.metrics.prometheus.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.compatFullname" . }}-metrics
+  labels:
+    metrics: 'true'
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.metrics.prometheus.port }}
+      targetPort: cache-metrics
+      protocol: TCP
+      name: cache-metrics
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+
+{{- end }}

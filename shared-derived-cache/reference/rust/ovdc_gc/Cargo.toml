@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+license = "Apache-2.0"
+name = "ovdc_gc"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ovdc_map = { path = "../ovdc_map" }
+ovdc_bytes = { path = "../ovdc_bytes" }
+ovdc_settings = { path = "../ovdc_settings" }
+ovdc_trace = { path = "../ovdc_trace" }
+
+hdrhistogram.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+rand.workspace = true

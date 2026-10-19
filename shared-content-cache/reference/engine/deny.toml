@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Local/dev supply-chain gate (`cargo deny --all-features check`). Catches
+# advisories, disallowed licenses, and unknown sources before the heavier
+# vulnerability scan in CI. Schema:
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+unmaintained = "workspace"
+unused-ignored-advisory = "allow"
+ignore = []
+
+[licenses]
+version = 2
+unused-allowed-license = "allow"
+unused-license-exception = "allow"
+# Skips workspace crates with publishing disabled; third-party licenses
+# below are still enforced.
+private = { ignore = true }
+# Accepted third-party dependency licenses; the workspace crates are covered by
+# the private rule above.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "OpenSSL",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+confidence-threshold = 0.93
+
+[[licenses.exceptions]]
+name = "ring"
+allow = ["LicenseRef-ring"]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "LicenseRef-ring"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+highlight = "simplest-path"
+deny = []
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

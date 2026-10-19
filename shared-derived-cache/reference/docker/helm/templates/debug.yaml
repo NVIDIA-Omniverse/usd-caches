@@ -1,0 +1,46 @@
+{{/*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/}}
+{{- if .Values.debug }}
+{{- /*
+A shell pod with the rendered config mounted, for inspecting what the chart
+produced. Release-scoped so two debug installs in one namespace do not collide.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "ovdc.fullname" . }}-debug
+  labels:
+    {{- include "ovdc.labels" . | nindent 4 }}
+    {{- with .Values.global.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- /*
+  Mirrors the StatefulSet's non-root defaults. This pod only sleeps and reads
+  the mounted config, so it has no need for root, and matching the main
+  workload keeps it installable in namespaces that enforce a restricted Pod
+  Security Standard.
+  */}}
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: debug
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      image: "ubuntu:24.04"
+      command:
+        - '/bin/sh'
+      args:
+        - "-c"
+        - 'sleep 999999999'
+      volumeMounts:
+      - name: config
+        mountPath: "/config"
+        readOnly: true
+  volumes:
+  - name: config
+    configMap:
+      name: {{ include "ovdc.fullname" . }}
+{{- end }}

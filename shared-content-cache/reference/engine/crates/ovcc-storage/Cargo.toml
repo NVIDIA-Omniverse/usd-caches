@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-storage"
+description = "Streaming, disk-backed object cache storage for OVCC."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+test-fixture-inspection = []
+
+[dependencies]
+ovcc-cachekey = { version = "0.1.0", path = "../ovcc-cachekey" }
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+ovcc-platform = { version = "0.1.0", path = "../ovcc-platform" }
+postcard = { workspace = true, features = ["use-std"] }
+redb.workspace = true
+serde = { workspace = true, features = ["derive"] }
+sha2.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[[bench]]
+name = "storage"
+harness = false

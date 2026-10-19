@@ -1,0 +1,11 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{- include "func.validatePersistenceMode" . -}}
+{{- include "func.validatePersistenceModeUpgrade" . -}}
+{{- include "func.validateUccUpgradeCompat" . -}}
+{{- include "func.validateBackendCacheCompatibility" . -}}
+{{- include "func.validateRegistryCache" . -}}
+{{- include "func.validateRequiresVersioningDeprecation" . -}}
+{{- include "func.validatePeer" . -}}

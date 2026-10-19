@@ -1,0 +1,181 @@
+{{/*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ovdc.fullname" . }}
+  labels:
+    {{- include "ovdc.labels" . | nindent 4 }}
+    {{- with .Values.global.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "ovdc.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "ovdc.fullname" . }}
+  replicas: {{ .Values.replicas }}
+  minReadySeconds: 10
+
+  {{ if .Values.storage.volume.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: environment
+        labels:
+          {{- include "ovdc.labels" . | nindent 10 }}
+          {{- with .Values.global.additionalLabels }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+      spec:
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.storage.volume.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.volume.size }}
+  {{ end }}
+
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ovdc.selectorLabels" . | nindent 8 }}
+        {{- with .Values.global.additionalLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        ovdc: kvnode
+    spec:
+      {{- /*
+      The application does not call the Kubernetes API, so it has no use for the
+      default ServiceAccount token that would otherwise be mounted into every
+      container. Not mounting it keeps an unused API credential out of the pod.
+      */}}
+      automountServiceAccountToken: false
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- /*
+      Merge the chart's self-anti-affinity preference into .Values.affinity
+      rather than emitting it as a sibling. Emitting both produced a duplicate
+      podAntiAffinity key, and last-key-wins silently discarded the user's rule.
+      Values supplied by the user take precedence; set selfAntiAffinity: false
+      to drop the chart's rule entirely.
+      */}}
+      {{- $selfAntiAffinity := dict }}
+      {{- if .Values.selfAntiAffinity }}
+      {{- $term := dict "labelSelector" (dict "matchExpressions" (list (dict "key" "ovdc" "operator" "In" "values" (list "kvnode")))) "topologyKey" "kubernetes.io/hostname" }}
+      {{- $selfAntiAffinity = dict "podAntiAffinity" (dict "preferredDuringSchedulingIgnoredDuringExecution" (list (dict "weight" 100 "podAffinityTerm" $term))) }}
+      {{- end }}
+      {{- with mergeOverwrite $selfAntiAffinity (deepCopy .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      containers:
+        # Pinned rather than derived from .Chart.Name: the chart is named
+        # ovderivedcache for the registry, but the container runs the
+        # service and should be named for it.
+        - name: ovdc
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.overrideTag | ternary .Values.image.tag .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: ovdc-grpc
+              containerPort: {{ include "ovdc.grpcPort" . }}
+              protocol: TCP
+            - name: http-metrics
+              containerPort: {{ include "ovdc.metricsPort" . }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: ovdc-grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: ovdc-grpc
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          - name: config
+            mountPath: "/config"
+            readOnly: true
+          {{- /*
+          Always mounted, whether it is backed by the PVC or by the emptyDir
+          below. The application calls create_dir_all on this path at startup,
+          and as a non-root user it cannot create a directory at the root of
+          the image's own filesystem — so leaving /env unmounted would break
+          the container rather than just making the database ephemeral.
+          */}}
+          - name: environment
+            mountPath: "/env"
+          {{- if .Values.settings.grpcTls.enabled }}
+          - name: tls
+            mountPath: {{ include "ovdc.tlsMountPath" . | quote }}
+            readOnly: true
+          {{- end }}
+
+          {{ if .Values.debug }}
+          command: ["/bin/sh"]
+          args: ["-c", "sleep 999999999"]
+          {{ else }}
+          command: ["/main"]
+          args: ["/env/env", "/config/config.toml"]
+          {{ end }}
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: RUST_LOG
+              value: {{ .Values.rustLog }}
+            - name: RUST_BACKTRACE
+              value: {{ .Values.rustBacktrace }}
+
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "ovdc.fullname" . }}
+      {{- if not .Values.storage.volume.enabled }}
+      {{- /*
+      No PVC was requested, so back /env with an emptyDir. This preserves the
+      documented dev/test behaviour — the database is ephemeral and is lost on
+      restart — while still giving the non-root user a writable directory. The
+      kubelet applies podSecurityContext.fsGroup to emptyDir as it does to the
+      PVC, so ownership is correct either way.
+      */}}
+      - name: environment
+        emptyDir: {}
+      {{- end }}
+      {{- if .Values.settings.grpcTls.enabled }}
+      - name: tls
+        secret:
+          secretName: {{ required "settings.grpcTls.secretName is required when settings.grpcTls.enabled is true" .Values.settings.grpcTls.secretName }}
+          defaultMode: 420
+      {{- end }}

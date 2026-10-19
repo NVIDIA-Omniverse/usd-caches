@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-presigned"
+description = "Classify and validate S3/Azure presigned URLs for OVCC."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+time = { workspace = true, features = ["parsing", "formatting", "macros"] }
+url.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "presigned"
+harness = false

@@ -1,0 +1,16 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{- $warnings := list -}}
+{{- $peerNetworkPolicyWarning := include "func.peerNetworkPolicyWarning" . -}}
+{{- if $peerNetworkPolicyWarning -}}
+{{- $warnings = append $warnings $peerNetworkPolicyWarning -}}
+{{- end -}}
+{{- $registryRewriteWarning := include "func.registryContentRewriteMatchingWarning" . -}}
+{{- if $registryRewriteWarning -}}
+{{- $warnings = append $warnings $registryRewriteWarning -}}
+{{- end -}}
+{{- range $warning := $warnings }}
+WARNING: {{ $warning }}
+{{- end }}

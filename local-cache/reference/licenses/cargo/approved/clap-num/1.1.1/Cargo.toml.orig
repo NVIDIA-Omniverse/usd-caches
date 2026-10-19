@@ -1,0 +1,17 @@
+[package]
+name = "clap-num"
+version = "1.1.1"
+authors = ["Alex Martens <alex@thinglab.org>"]
+keywords = ["argument", "cli", "arg", "parser", "parse"]
+categories = ["command-line-interface"]
+description = "Number parsers for clap"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/newAM/clap-num/"
+readme = "README.md"
+
+[dependencies]
+num-traits = "0.2"
+
+[dev-dependencies]
+clap = { version = "4", features = ["derive"] }

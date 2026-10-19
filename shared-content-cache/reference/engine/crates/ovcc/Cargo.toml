@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc"
+description = "Omniverse Content Cache — reverse-proxy cache engine."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ovcc-config = { version = "0.1.0", path = "../ovcc-config" }
+ovcc-proxy = { version = "0.1.0", path = "../ovcc-proxy" }
+ovcc-telemetry = { version = "0.1.0", path = "../ovcc-telemetry" }
+tracing.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator = { workspace = true, features = ["background_threads"] }
+
+[dev-dependencies]
+sha2.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["io-util", "macros", "net", "process", "rt-multi-thread", "time"] }
+
+[target.'cfg(unix)'.dev-dependencies]
+nix = { workspace = true, features = ["signal"] }
+
+[features]
+test-optional-keys = ["ovcc-proxy/test-optional-keys"]
+default = []
+test-fault-injection = ["ovcc-proxy/test-fault-injection"]

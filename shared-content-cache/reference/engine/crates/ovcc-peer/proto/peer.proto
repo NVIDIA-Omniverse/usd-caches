@@ -1,0 +1,62 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package ovcc.peer.v1;
+
+service PeerControl {
+  rpc WhoHas(WhoHasRequest) returns (WhoHasResponse);
+}
+
+message CacheIdentity {
+  string host = 1;
+  string method = 2;
+  string uri = 3;
+  string filtered_query = 4;
+  string if_match = 5;
+  string range = 6;
+}
+
+message Validator {
+  oneof value {
+    string etag = 1;
+    string last_modified = 2;
+  }
+}
+
+message WhoHasRequest {
+  CacheIdentity identity = 1;
+  Validator validator = 2;
+  OptionalKeyIdentity optional_keys = 3;
+}
+
+// Additive extension: old servers ignore this message. Requesters must require
+// an explicit acknowledgement before interpreting a response as optional reuse.
+message OptionalKeyPart {
+  string name = 1;
+  optional string value = 2;
+  bool optional = 3;
+}
+
+message OptionalKeyIdentity {
+  string contract = 1;
+  string policy = 2;
+  repeated OptionalKeyPart parts = 3;
+}
+
+enum ObjectStatus {
+  OBJECT_STATUS_UNSPECIFIED = 0;
+  OBJECT_STATUS_ABSENT = 1;
+  OBJECT_STATUS_COMMITTED = 2;
+}
+
+message WhoHasResponse {
+  ObjectStatus object_status = 1;
+  uint32 http_status = 2;
+  uint64 object_size = 3;
+  Validator validator = 4;
+  optional uint64 max_idle_seconds = 5;
+  string optional_keys_ack = 6;
+  repeated string omitted_parts = 7;
+}

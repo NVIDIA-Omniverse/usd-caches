@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+license = "Apache-2.0"
+name = "ovdc_jwt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jsonwebtoken.workspace = true
+reqwest.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+parking_lot.workspace = true
+tokio.workspace = true
+
+ovdc_sharded_map = { path = "../ovdc_sharded_map" }
+ovdc_trace = { path = "../ovdc_trace" }

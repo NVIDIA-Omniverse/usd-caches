@@ -1,0 +1,35 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chart.compatFullname" . }}-nginx-conf
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+data:
+  nginx.conf: |-
+    {{ tpl (.Files.Get "files/nginx.conf") . | nindent 4 }}
+  logging-formats.conf: |-
+     {{ tpl (.Files.Get "files/logging-formats.conf") . | nindent 6 }}
+  cache-bypass.conf: |-
+     {{ tpl (.Files.Get "files/cache-bypass.conf") . | nindent 8 }}
+  cache-generation.conf: |-
+     {{ tpl (.Files.Get "files/cache-generation.conf") . | nindent 8 }}
+  cacheability-overrides.conf: |-
+     {{ tpl (.Files.Get "files/cacheability-overrides.conf") . | nindent 8 }}
+  mutation-detection.conf: |-
+     {{ tpl (.Files.Get "files/mutation-detection.conf") . | nindent 8 }}
+  azure-server.conf: |-
+     {{ tpl (.Files.Get "files/backends/azure-server.conf") . | nindent 6 }}
+  s3-server.conf: |-
+     {{ tpl (.Files.Get "files/backends/s3-server.conf") . | nindent 6 }}
+  gcs-server.conf: |-
+     {{ tpl (.Files.Get "files/backends/gcs-server.conf") . | nindent 6 }}
+  nucleus-server.conf: |-
+     {{ tpl (.Files.Get "files/backends/nucleus-server.conf") . | nindent 6 }}
+  self-server.conf: |-
+     {{ tpl (.Files.Get "files/backends/self-server.conf") . | nindent 6 }}
+  passthrough-server.conf: |-
+     {{ tpl (.Files.Get "files/backends/passthrough-server.conf") . | nindent 6 }}

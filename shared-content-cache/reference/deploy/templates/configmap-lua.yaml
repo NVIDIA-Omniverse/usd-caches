@@ -1,0 +1,28 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chart.compatFullname" . }}-lua
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+data:
+  {{- /* Skips listed scripts the chart no longer ships so older lists still render. */}}
+  {{- range $value := .Values.nginx.lua.files }}
+  {{- $path := printf "files/lua/%s" $value }}
+  {{- if $.Files.Glob $path }}
+  {{ regexReplaceAll "\\W+" $value "_" }}: |-
+    {{- if or (eq $value "lua-generation.lua") (eq $value "lua-metrics.lua") }}
+    {{ tpl ($.Files.Get $path) $ | nindent 4 }}
+    {{- else }}
+    {{ $.Files.Get $path | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if and .Values.tls.enabled .Values.tls.autoReloadSecret }}
+  lua_cert_reload_lua: |-
+    {{ $.Files.Get "files/lua/lua-cert-reload.lua" | nindent 4 }}
+  {{- end }}
+

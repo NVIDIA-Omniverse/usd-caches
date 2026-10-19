@@ -1,0 +1,263 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Allowed values are json, human, human_no_color
+logFormat = "json"
+# Log level for stdout fmt layer. Allowed values: "error", "warn", "info", "debug", "trace", "off"
+logLevel = "info"
+# Optional per-module level overrides layered on top of logLevel, independent of the
+# otelTraces/otelLogs sinks below. Format: module[*]=level[,module2[*]=level2]...
+# e.g. "ovdc::grpc=debug"
+logFilter = ""
+
+# Configure additional storage settings.
+[store]
+# Once a DB is created this value cannot be changed.
+maxSize = "32Mi"
+# The size after which values will be split up.
+blobCutoff = 8000
+# The size by which to split values by.
+blobChunkSize = 4000000
+# Engine to use when storing files.
+mode = "log"
+
+# Engine specific configuration.
+[engine]
+  useWriteBufferManager = true
+  cacheSize = "32G"
+  blockCacheSize = "8G"
+  increaseParallelism = 8
+  threadsHigh = 4
+  threadsLow = 4
+
+  db.allow_concurrent_memtable_write = true
+  db.max_open_files = 128
+  db.max_background_jobs = 6
+  db.table_cache_numshardbits = 8
+  db.fail_if_options_file_error = true
+  db.keep_log_file_num = 8
+  db.avoid_unnecessary_blocking_io = true
+  db.max_log_file_size = "64M"
+  db.stats_dump_period_sec = 0
+  db.create_if_missing = true
+
+  cf.min_blob_size = 8096
+  cf.enable_blob_files = true
+  cf.enable_blob_garbage_collection = true
+  # Consider all blob files -- not just the oldest quarter -- for
+  # relocation whenever a compaction touches their SST keys.
+  cf.blob_garbage_collection_age_cutoff = 1.0
+  # Force a targeted compaction once a blob file is more than half
+  # garbage, rather than waiting for one to be triggered some other way.
+  cf.blob_garbage_collection_force_threshold = 0.25
+
+  cf.write_buffer_size = "64M"
+  cf.max_write_buffer_number = 3
+  cf.memtable_whole_key_filtering = true
+  cf.periodic_compaction_seconds = 28800
+  cf.memtable_prefix_bloom_size_ratio = 0.020000
+
+  # blobsCf holds the actual blob chunk bytes (see store.blobCutoff /
+  # store.blobChunkSize) as RocksDB integrated blob files, so garbage
+  # collection reclaims deleted chunks without carrying them through
+  # regular SST compaction.
+  blobsCf.enable_blob_files = true
+  blobsCf.min_blob_size = 8096
+  blobsCf.blob_file_size = "32M"
+  blobsCf.write_buffer_size = "64M"
+  blobsCf.max_write_buffer_number = 24
+  blobsCf.memtable_whole_key_filtering = true
+  blobsCf.level0_stop_writes_trigger = 24
+  blobsCf.memtable_prefix_bloom_size_ratio = 0.020000
+  blobsCf.enable_blob_garbage_collection = true
+  # Consider all blob files -- not just the oldest quarter -- for
+  # relocation whenever a compaction touches their SST keys.
+  blobsCf.blob_garbage_collection_age_cutoff = 1.0
+  # Force a targeted compaction once a blob file is more than half
+  # garbage, rather than waiting for one to be triggered some other way.
+  blobsCf.blob_garbage_collection_force_threshold = 0.25
+
+  block.cache_index_and_filter_blocks = true
+  block.block_size = 16384
+  block.index_type = "kTwoLevelIndexSearch"
+  block.filter_policy = "bloomfilter:10"
+  block.partition_filters = true
+  block.optimize_filters_for_memory = true
+  block.data_block_index_type = "kDataBlockBinaryAndHash"
+  block.pin_l0_filter_and_index_blocks_in_cache = true
+  block.prepopulate_block_cache = "kFlushOnly"
+
+# Configuration for garbage collection.
+[garbageCollection]
+# The minimum free capacity target for the target map.
+# If the percentage of free map space falls below the given amount, GC will begin.
+minFreeCapacity = 40
+# Once GC begins, the system will attempt to remove the given quantile of the entire keyspace.
+# If this number is 60, then 60% of keys will be deleted.
+deleteKeyspaceQuantile = 60
+# How long, in seconds, to wait after a GC pass finishes before checking free capacity again.
+cooldownSecs = 10
+
+# Provides the ability to export to OTEL and prometheus.
+[telemetry]
+prometheusMetricsExposition = true
+prometheusMetricsPort = 3051
+
+# Main configuration for OpenTelemetry integration.
+[otel]
+# When true, OpenTelemetry telemetry export is enabled.
+enabled = true
+# When true, configuration values can be overridden by environment variables.
+useEnvVars = true
+
+# Configuration for distributed tracing.
+[otelTraces]
+# The exporter to use. Acceptable values: "otlp", "console", "none".
+exporter = "otlp"
+
+# The OTLP export protocol. Acceptable value: "grpc".
+otlp.protocol = "grpc"
+# The OTLP URI for exposition.
+otlp.endpoint = "http://localhost:4317"
+# The timeout duration for OTLP export requests.
+otlp.timeout = "10s"
+# The delay in milliseconds between batch export attempts.
+processor.scheduleDelay = 5000
+# The maximum number of items to queue before dropping new items.
+processor.maxQueueSize = 2048
+# The maximum number of items to include in a single batch export.
+processor.maxBatchSize = 512
+
+# Maximum length in bytes for span attribute values. Longer values are truncated.
+attributeValueLengthLimit = "4k"
+# Maximum number of attributes allowed per span.
+attributeCountLimit = 128
+# Maximum number of events allowed per span.
+eventCountLimit = 128
+# Maximum number of links allowed per span.
+linkCountLimit = 128
+# Maximum number of attributes allowed per span event.
+eventAttributeCountLimit = 128
+# Maximum number of attributes allowed per span link.
+linkAttributeCountLimit = 128
+# Argument for the sampler, used with ratio-based samplers (0.0 to 1.0).
+samplerArg = 0.25
+# The sampling strategy to use for traces.
+sampler = "always_on"
+# Base level for events forwarded to the span exporter, independent of logLevel and
+# otelLogs.level. Allowed values: "error", "warn", "info", "debug", "trace", "off"
+level = "info"
+# Optional per-module level overrides layered on top of `level`.
+# Format: module[*]=level[,module2[*]=level2]...  e.g. "ovdc::grpc=debug"
+filter = ""
+
+# Configuration for distributed logs.
+[otelLogs]
+# The exporter to use. Acceptable values: "otlp", "console", "none".
+exporter = "otlp"
+
+# The OTLP export protocol. Acceptable value: "grpc".
+otlp.protocol = "grpc"
+# The OTLP URI for exposition.
+otlp.endpoint = "http://localhost:4317"
+# The timeout duration for OTLP export requests.
+otlp.timeout = "10s"
+# The delay in milliseconds between batch export attempts.
+processor.scheduleDelay = 5000
+# The maximum number of items to queue before dropping new items.
+processor.maxQueueSize = 2048
+# The maximum number of items to include in a single batch export.
+processor.maxBatchSize = 512
+
+# Maximum length in bytes for log attribute values. Longer values are truncated.
+attributeValueLengthLimit = "4K"
+# Maximum number of attributes allowed per log record.
+attributeCountLimit = 128
+# Base level for events forwarded to the log exporter, independent of logLevel and
+# otelTraces.level. Allowed values: "error", "warn", "info", "debug", "trace", "off"
+level = "info"
+# Optional per-module level overrides layered on top of `level`.
+# Format: module[*]=level[,module2[*]=level2]...  e.g. "ovdc::grpc=debug"
+filter = ""
+
+# Configuration for metrics.
+[otelMetrics]
+# The exporter to use. Acceptable values: "otlp", "console", "none".
+exporter = "otlp"
+
+# The OTLP export protocol. Acceptable value: "grpc".
+otlp.protocol = "grpc"
+# The OTLP URI for exposition.
+otlp.endpoint = "http://localhost:4317"
+# The timeout duration for OTLP export requests.
+otlp.timeout = "15s"
+# The delay in milliseconds between export attempts.
+processor.interval = "30s"
+
+# Configure the GRPC HTTP service.
+[grpc]
+# The port at which to serve the GRPC service.
+port = 3010
+# Set the initial HTTP2 stream window size. Must not be 0.
+initialStreamWindowSize = "512K"
+# Set the initial HTTP2 connection window size. Must not be 0.
+initialConnectionWindowSize = "32M"
+# Max number of requests that can be operated on concurrently per connection. Must not be 0.
+connectionConcurrencyLimit = 32
+# Max number of HTTP2 streams per connection. 0 for unlimited.
+maxConcurrentStreams = 0
+# Max frame size for each HTTP2 data frame. 0 for HTTP2 default.
+maxFrameSize = 0
+# Max time that a request can take. Must not be 0.
+timeout = "30s"
+# The amount of time to wait before timing out a proto buf write.
+writeTimeout = "15s"
+# The amount of time in seconds before keepalive probes are sent.
+tcpKeepaliveAfterIdleTime = "3s"
+# The amount of time between each keepalive probe.
+tcpKeepaliveInterval = "3s"
+# The number of probes to send before the socket is considered reset.
+tcpKeepaliveRetries = 5
+# The amount of time to wait between http2 keepalive probes.
+http2KeepaliveInterval = "3s"
+# The amount of time to wait before connection is considered reset.
+http2KeepaliveTimeout = "20s"
+# If true a tenant ID can be set through a string set in the metadata.
+tenantFromMetadata = true
+# The max size that the GRPC service will allow.
+maxDecodingMessageSize = "5M"
+# Max time that a single PUT stream can run for. Capped at 4h; a larger value is
+# logged as an error and treated as 4h rather than refused.
+putTimeout = "1h"
+
+# Configuration for TLS properties for GRPC.
+[grpcTls]
+# If true the tonic server will require TLS.
+enabled = false
+# The path for the client certificate to use.
+cert = "cert.pem"
+# The path for the key of the client certificate.
+key = "cert.key"
+# If true the ca root path provided will be used as the ca root for the TLS cert.
+includeCaRoot = false
+# The path to use for the ca root, only used if `includeCaRoot` is true.
+caRoot = "ca.pem"
+
+# Configuration for JWT for GRPC.
+[grpcJwt]
+# If true the tonic server will verify JWTs provided to the service.
+enabled = false
+# If true, a valid JWT is required for requests to succeed.
+require = false
+# Url for public JWK set.
+jwkPublicKeysetUrl = ["debug"]
+# The amount of time to wait before requesting a JWK set from the given url.
+jwkUpdateIntervalSecs = 60
+# The amount of bytes to consume to cache JWTs across connections.
+cacheSizeMb = 16
+# When true the aud claim of the token is verified.
+verifyAud = false
+# Tokens will be required to have this value as their audience claim.
+audClaim = ""
+# When true verifies the expiration time of provided JWT.
+verifyExp = false

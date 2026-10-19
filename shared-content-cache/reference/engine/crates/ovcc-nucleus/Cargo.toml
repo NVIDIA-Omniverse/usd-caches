@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-nucleus"
+description = "OVCC Nucleus LFT request/response policy: path classify, header transform, CORS, auth-bypass, cache-key assembly."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ovcc-cachekey = { version = "0.1.0", path = "../ovcc-cachekey" }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "nucleus"
+harness = false

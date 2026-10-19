@@ -1,0 +1,148 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[workspace]
+
+members = [
+    "ovdc",
+
+    "ovdc_bytes",
+    "ovdc_lru",
+    "ovdc_gc",
+    "ovdc_map",
+    "ovdc_settings",
+    "ovdc_trace",
+    "ovdc_grpc",
+    "ovdc_jwt",
+    "ovdc_sharded_map",
+    "ovdc_version",
+    "ovdc_attributions",
+]
+
+resolver = "2"
+
+[workspace.dependencies]
+criterion = "0.8"
+tempfile = "3.10"
+
+toml_edit = { version = "0.25", features = ["serde"] }
+
+rocksdb = { version = "^0.24", default-features = false, features = ["raw-ptr", "mt_static"], git = "https://github.com/rust-rocksdb/rust-rocksdb.git", rev = "94f102fc83c8f01c6354794e251244f44d74aaef" }
+librocksdb-sys = { version = "^0.18", default-features = false, features = ["static"], git = "https://github.com/rust-rocksdb/rust-rocksdb.git", rev = "94f102fc83c8f01c6354794e251244f44d74aaef" }
+parking_lot = { version ="0.12" }
+serde = { version = "1.0", features = [ "derive" ] }
+serde_json = "1.0"
+pastey = "0.2"
+hashbrown = { version = "0.17", features = [ "raw-entry" ] }
+seahash = "4.1"
+rand = "0.10"
+bytes = "1.4"
+smallvec = "1.15"
+rkyv = { version = "0.8", default-features = false, features = ["unaligned", "std", "alloc", "bytecheck"] }
+base64 = "0.22"
+hdrhistogram = { version = "7.5", default-features = false }
+futures = { version = "0.3", default-features = false }
+jsonwebtoken = { version = "10.3", default-features = false, features = [ "aws_lc_rs" ] }
+
+tower = "0.5"
+tower-http = { version = "0.7", default-features = false, features = ["trace", "add-extension"] }
+
+socket2 = "0.6"
+
+rustls = { version = "0.23.45", default-features = false, features = ["aws-lc-rs"]}
+rustls-pki-types = "1.14"
+tokio-rustls = { version = "0.26", default-features = false }
+
+axum = { version = "0.8", default-features = false }
+hyper = { version = "1.8", features = ["server", "http2"]}
+hyper-util = { version = "0.1", features = ["server","tokio", "http2", "service"]}
+http = "1.4"
+http-body-util = "0.1"
+reqwest = { version = "0.13", default-features = false, features = ["rustls-native-certs", "rustls-no-provider"] }
+
+tokio = { version = "1.38", default-features = false, features = ["rt-multi-thread", "macros", "sync", "time", "fs", "net", "io-util", "signal"] }
+tokio-stream = { version = "0.1", default-features = false, features = ["net", "sync"] }
+
+tracing = "0.1"
+tracing-opentelemetry = { version = "0.33", default-features = false, features = ["metrics"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "json"] }
+
+opentelemetry = { version = "0.32", default-features = false, features = ["trace", "metrics", "logs"]}
+opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace", "metrics", "logs", "rt-tokio"] }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = ["trace", "metrics", "logs", "grpc-tonic"] }
+opentelemetry-appender-tracing = "0.32"
+
+tonic = { version = "0.14", default-features = false, features = ["server", "channel", "codegen", "router", "tls-aws-lc"] }
+tonic-health = { version = "0.14" }
+tonic-prost = { version = "0.14" }
+tonic-prost-build = { version = "0.14", default-features = false, features = ["transport"] }
+prost = "0.14"
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+incremental = false
+lto = true
+codegen-units = 1
+panic = 'abort'
+
+[profile.bench]
+debug = true
+
+[[workspace.metadata.swipat.downloads]]
+name = "anes"
+urls = [
+    "https://raw.githubusercontent.com/qwandor/anes-rs/v0.1.6/LICENSE-MIT",
+    "https://raw.githubusercontent.com/qwandor/anes-rs/v0.1.6/LICENSE-APACHE",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "crunchy"
+urls = [
+    "https://raw.githubusercontent.com/eira-fransham/crunchy/master/LICENSE",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "prost"
+urls = [
+    "https://raw.githubusercontent.com/tokio-rs/prost/master/LICENSE",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "seahash"
+urls = [
+    "https://gitlab.redox-os.org/redox-os/seahash/-/raw/master/LICENSE?ref_type=heads",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "valuable"
+urls = [
+    "https://raw.githubusercontent.com/tokio-rs/valuable/master/LICENSE",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "winapi-i686-pc-windows-gnu"
+urls = [
+    "https://raw.githubusercontent.com/retep998/winapi-rs/master/LICENSE-APACHE",
+    "https://raw.githubusercontent.com/retep998/winapi-rs/master/LICENSE-MIT",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "winapi-x86_64-pc-windows-gnu"
+urls = [
+    "https://raw.githubusercontent.com/retep998/winapi-rs/master/LICENSE-APACHE",
+    "https://raw.githubusercontent.com/retep998/winapi-rs/master/LICENSE-MIT",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "rocksdb"
+urls = [
+    "https://raw.githubusercontent.com/rust-rocksdb/rust-rocksdb/master/LICENSE",
+]
+
+[[workspace.metadata.swipat.downloads]]
+name = "librocksdb-sys"
+urls = [
+    "https://raw.githubusercontent.com/rust-rocksdb/rust-rocksdb/master/LICENSE",
+]

@@ -1,0 +1,567 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# The chart is published to NGC as `ovcontentcache` (its `Chart.yaml` `name:`).
+# K8s resources render with `nameOverride` as the name root — `ovcc` by default —
+# so a fresh install yields `<release>-ovcc` StatefulSet, Services, PVCs, and
+# ConfigMaps. Override at install time with `--set nameOverride=<your-name>` to
+# change the rendered resource name root.
+nameOverride: ovcc
+
+replicaCount: 1
+
+# Establishes non-root identity, mounted-volume ownership, and syscall filtering.
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Prevents privilege escalation and limits writes to mounted paths.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Container image. The repository intentionally stays at usd-content-cache.
+image:
+  registry: nvcr.io
+  repository: nvidia/omniverse/usd-content-cache
+  pullPolicy: IfNotPresent
+  tag: "3.0.2"
+  pullSecrets:
+    # Name of the Kubernetes secret needed to pull from the GitLab registry.
+    - name: gitlab-registry-secret
+
+# Feature flags to enable experimental or opt-in functionality.
+featureFlags:
+  # Continues processing upstream requests even if the client disconnects, allowing cache
+  # population to complete. Under high congestion, clients may timeout during large transfers.
+  # Completing the cache write ensures subsequent clients get cache hits instead of re-fetching
+  # from upstream.
+  ignoreClientAbort: true
+
+  # Enables bursty cache for frequently-changing data (e.g., list operations).
+  # This ignores `cache-control: no-cache` for the sake of performance.
+  # Uses a short TTL with active purging for stale entries.
+  enableBurstyCache: true
+
+  # Enables session affinity to ensure requests from the same client IP go to the
+  # same pod. Required for in-memory S3 list cache to be effective across multiple
+  # replicas, as the cache is not shared between pods. When disabled, requests may
+  # be load-balanced to different pods, reducing cache effectiveness.
+  enableSessionAffinity: false
+
+  # Session affinity idle timeout in seconds. After this period of inactivity from
+  # a client IP, the affinity expires and subsequent requests may be routed to a
+  # different pod. The timer resets with each request. Balances cache effectiveness
+  # (should be ≥ `burstyCache.ttlSec`) with load distribution (shorter = more frequent
+  # re-balancing). Default 30s covers test scenarios (5s cache) and allows periodic
+  # re-balancing of long-running workloads (60s production cache).
+  sessionAffinityTimeoutSeconds: 30
+
+  # Uses round-robin load balancing by setting externalTrafficPolicy: Local.
+  # This forces kube-proxy to handle load distribution instead of cloud provider
+  # LBs (e.g., Azure LB's 5-tuple hash), which can cause uneven traffic and NIC
+  # saturation on a subset of pods. When disabled, defaults to Cluster policy.
+  useRoundRobinLoadBalancing: true
+
+# Service configuration for accessing the cache.
+# Port 14128 avoids issues with privileged port 443 (HTTPS), which non-root containers
+# can't bind to, preventing permission errors.
+service:
+  headless:
+    # Allows peer-enabled Rust deployments to publish stable replica addresses.
+    enabled: true
+  cache:
+    type: ClusterIP
+    port: 14128
+    containerPort: 14128
+    annotations: {}
+    # Optionally specify a specific IP for the LoadBalancer.
+    loadBalancerIP: null
+  nucleus:
+    # Nucleus service configuration for Large File Transfer (LFT) operations.
+    type: ClusterIP
+    port: 14129
+    containerPort: 14129
+    annotations: {}
+    # Optionally specify a specific IP for the LoadBalancer.
+    loadBalancerIP: null
+  peer:
+    # Internal Rust-engine listener used only for replica-to-replica fills.
+    port: 14130
+    containerPort: 14130
+
+# Populates a cold Rust-engine replica from a warm sibling before using the
+# origin. The chart derives discovery and TLS names from the release namespace.
+peer:
+  enabled: false
+  # Retains peer-fetched objects locally; disabling it relays remote hits without storage.
+  replicate: true
+  # Bounds peer-attempt latency before a cache miss uses the origin.
+  budgetMs: 300
+  refreshSecs: 30
+  minObjectBytes: 1048576
+
+# Restricts peer traffic to pods in the release namespace. Enabling this policy
+# also isolates client ports, so list every allowed client source below.
+networkPolicy:
+  enabled: false
+  clientIngress:
+    # Keeps same-namespace clients, health checks, and test jobs reachable.
+    - podSelector: {}
+
+# TLS configuration for HTTPS.
+tls:
+  # Enables HTTPS for the service.
+  enabled: true
+  # Name of the Kubernetes Secret containing tls.crt and tls.key
+  # For local Minikube testing, you'll need to create this secret:
+  #   - openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=ovcc.local.test/O=MyOrg"
+  #   - kubectl create secret tls ovcc-tls --key /tmp/tls.key --cert /tmp/tls.crt
+  #   - rm /tmp/tls.key /tmp/tls.crt
+  secretName: "ovcc-tls"
+  # TLS protocol versions offered to clients. Default is TLS 1.3-only (hardened).
+  # Set to "TLSv1.2 TLSv1.3" to also serve clients that cannot negotiate 1.3
+  # (e.g. .NET Framework's System.Net.WebClient, used by packman's Windows
+  # bootstrap downloader). TLS 1.2 is still secure; only 1.0/1.1 are deprecated.
+  sslProtocols: "TLSv1.3"
+  # When enabled, TLS secrets can rotate without pod restarts.
+  autoReloadSecret: false
+
+# Migration knobs for the rename from usd-content-cache (UCC) to ovcc.
+#   useUccDefaults       - render UCC names so `helm upgrade` is in-place
+#   emitLegacyCacheReset - keep /__ucc/cache/reset and UCC-Instance live for old clients
+compat:
+  useUccDefaults: false
+  uccDefaults:
+    chartName: usd-content-cache
+    tlsSecretName: "usd-content-cache-tls"
+    metricPrefix: "ucc_"
+  emitLegacyCacheReset: true
+
+# Persistence Volume Claim (PVC) configuration.
+persistence:
+  # Cache storage backing. Allowed values:
+  #   pvc       - PersistentVolumeClaims per backend cache (default).
+  #   ephemeral - Kubernetes emptyDir volumes per backend cache. Cache data is lost
+  #               when the pod is recreated, rescheduled, or the node is recreated.
+  mode: pvc
+  storageClassName: "managed-csi-premium-burst"
+  # Defines claims for the volumes declared in the "/docker/openresty.Dockerfile" file.
+  # `name` is used as the logical key to link with the corresponding "nginx.proxyCache.paths" entry.
+  volumes:
+    - name: az
+      path: /proxy_cache_az
+      sizeGi: 2048
+      minFreeSizePercentage: 7
+      # Override storage class for this volume.
+      # storageClassName: null
+    - name: s3
+      path: /proxy_cache_s3
+      sizeGi: 2048
+      minFreeSizePercentage: 7
+    - name: nucleus
+      path: /proxy_cache_nucleus
+      sizeGi: 2048
+      minFreeSizePercentage: 7
+    - name: gcs
+      path: /proxy_cache_gcs
+      sizeGi: 2048
+      minFreeSizePercentage: 7
+    - name: registry
+      path: /proxy_cache_registry
+      sizeGi: 2048
+      minFreeSizePercentage: 7
+
+# NGINX/OpenResty cache behavior settings.
+nginx:
+  workerConnections: 8192
+  keepaliveRequests: 999999
+  http2MaxConcurrentStreams: 32768
+  # Maximum intermediate CA certificates to verify for Lua outbound HTTPS and proxied
+  # backend HTTPS (lua_ssl_verify_depth and proxy_ssl_verify_depth).
+  sslVerifyDepth: 2
+  # Proxy buffer settings for backend response handling. Larger buffers decouple fast backend
+  # reads from slow client writes, freeing backend connections quickly. Critical for efficient
+  # connection pooling with cloud storage. Optimized for cache warmup performance by minimizing
+  # S3 connection hold time and reducing temporary file I/O on burst storage.
+  proxyBuffers:
+    count: 64                     # Number of buffers per request (Default: 8).
+    size: 512k                    # Size of each buffer (Default: 4k or 8k; 64 × 512k = 32MB per request).
+  proxyBufferSize: 128k           # Buffer for response headers (Default: 4k or 8k).
+  proxyBusyBuffersSize: 8m        # Allow more concurrent streaming (Default: 8k or 16k; 25% of 32MB).
+  proxyMaxTempFileSize: 512m      # Rarely used with 32MB buffers (Default: 1024m; protects burst credits).
+  proxyTempFileWriteSize: 4m      # Efficient sequential writes (Default: 8k or 16k; 8 buffers worth).
+  proxyCache:
+    # Minimize duplicate fetches; allow a fallback fetch after 60s if the first stalls.
+    # Waiters hold up to 120s for the shared result; after that, they fetch without caching.
+    # Doubled from 30s/60s to give multi-GiB write-through seeds time to populate
+    # under the cache lock before same-key readers fall back to upstream.
+    lockAge: 60s
+    lockTimeout: 120s
+    # List the HTTP codes and how long they should be cached.
+    # https://nginx.org/en/docs/syntax.html
+    validity:
+      "200": "1d"
+      "206": "1d"
+    # List defining NGINX "proxy_cache_path" directives.
+    # `name` is NGINX keys_zone name and must match a `name` in "persistence.volumes".
+    # `path` specifies the NGINX cache directory on disk and must reside within a "persistence.volumes".
+    paths:
+      - name: az
+        path: /proxy_cache_az/data
+        # maxSizeGi: 90
+        maxIdleTime: 1d
+        peerCopyMaxIdleTime: 4h
+        metadataMemorySize: 1024m
+      - name: s3
+        path: /proxy_cache_s3/data
+        maxIdleTime: 1d
+        peerCopyMaxIdleTime: 4h
+        metadataMemorySize: 1024m
+      - name: gcs
+        path: /proxy_cache_gcs/data
+        maxIdleTime: 1d
+        peerCopyMaxIdleTime: 4h
+        metadataMemorySize: 1024m
+      - name: nucleus
+        path: /proxy_cache_nucleus/data
+        maxIdleTime: 1d
+        peerCopyMaxIdleTime: 4h
+        metadataMemorySize: 1024m
+      - name: registry
+        path: /proxy_cache_registry/data
+        maxIdleTime: 1d
+        peerCopyMaxIdleTime: 4h
+        metadataMemorySize: 1024m
+  logging:
+    buffer: 4m
+    flushInterval: 15s
+  sharedMemory:
+    limits:
+      lockByRequestUriTable: "1024m"
+      presignedUrlCache: "1024m"
+      upstreamBalancerCache: "1024m"
+  # Native NGINX DNS resolver configuration.
+  # This is used when the Lua upstream balancer is not enabled.
+  resolver:
+    config: "local=on ipv6=off"
+    timeoutSecs: 30
+  # Upstream balancer configuration for DNS resolution and connection pooling.
+  # Enables keepalive connections to dynamically resolved hostnames (e.g., S3), reducing
+  # TCP/TLS handshake overhead and improving throughput during high-volume operations like
+  # cache warmup. Without this, each request would open a new connection to the upstream.
+  #
+  # Field names are translated by `func.toSnakeCaseJson`; e.g., `timeoutSecs` becomes `timeout_secs`.
+  upstreamBalancer:
+      keepalive:
+        idleTimeoutSecs: 60
+        # 0 means unlimited in ngx-lua-module.
+        maxRequestsPerConnection: 0
+        # Maximum cached idle connections per worker process (across all upstream targets).
+        # Connections are pooled by hostname+IP+port. Total = value × worker_processes (cores).
+        maxCachedConnectionsPerWorker: 200
+      resolver:
+        cache:
+          successTtlSecs: 30         # Caches successful DNS lookups. Lower values enable faster discovery of backend scale-out and IP rotations during high load.
+          failureTtlSecs: 10         # Caches failed DNS lookups (avoids retry storms).
+        query:
+          timeoutMs: 20000           # DNS query timeout per attempt (lua-resty-dns).
+          retries: 3                 # DNS retries on timeout. Max time = timeoutMs × (retries+1) = 80s.
+          random: true               # Non-sequential nameserver order.
+        fallback:
+          - "8.8.8.8"                # Google's public DNS server.
+  socketPoolSize: 512
+  # Caches an object as it is uploaded so a later GET is a HIT. Turn it on per
+  # backend under `backends.<name>.writeThrough`; these settings tune the shared
+  # upload staging area.
+  writeThrough:
+    # Local loopback port used to coordinate staging and caching; must not be exposed.
+    internalPort: 13130
+    # Read chunk size (bytes) for client-body tee and seed drain.
+    requestBodyChunkSize: 65536
+    # Staging tree on each backend cache volume; keeps partial -> ready rename atomic.
+    stagingSubdir: .ovcc-staging
+    # Lifetime for internal staging metadata and committed staging files.
+    stagingTokenTtlSeconds: 300
+    # Shared dictionary size for staging metadata, not upload bodies.
+    stagingMetadataSize: 1024m
+  # In OVCC, the Host header determines which backend serves the request.
+  # Requests whose Host matches the proxy's own service name are not meant
+  # for any backend and are rejected with HTTP 421 (Misdirected Request).
+  #
+  # Service names are auto-derived from the Helm release and namespace using
+  # all four Kubernetes DNS forms, e.g. for release "ovcc" in namespace "prod":
+  #   ovcc[.prod[.svc[.cluster.local]]]
+  # Use extraNames to add hostnames to reject (e.g. Ingress FQDN).
+  selfServer:
+    enabled: true
+    extraNames: []
+  # List of backends supported.
+  # The `proxyCacheName` must match a `name` in `nginx.proxyCache.paths.name`.
+  # An optional backend `maxIdleTime` further shortens the inactivity horizon
+  # for objects routed through that backend and follows peer-replicated copies.
+  backends:
+    # Caches package registries (such as npm, pip, and conan).
+    # Requires matching `proxyCacheName` entries in `persistence.volumes` and
+    # `nginx.proxyCache.paths` to allocate cache storage.
+    registry:
+      include: false
+      allowCacheReset: false
+      proxyCacheName: registry
+      # Controls how clients address an upstream. `direct`: clients use the real
+      # hostname (e.g. `pypi.org`). `suffix`: clients use the host suffixed with
+      # the cluster-local DNS address (`<host>.<release-namespace>.svc.cluster.local`).
+      # `any`: accepts both forms (the suffix is optional).
+      matching: any
+      # By default, all registry URIs may be cached. A regex limits caching to URIs
+      # whose path and raw query match it, and a `!~` prefix instead excludes
+      # matches. Disallowed URIs bypass the cache even when already cached. Patterns
+      # use Rust `regex` syntax, as documented at https://docs.rs/regex/latest/regex/#syntax.
+      # cacheableUri: '!~ ^/v2/token(?:\?|$)'
+      cacheableUri: null
+      # Bypasses the requirement for an `If-Match` header to support standard package
+      # managers. Access is still authenticated on every request; stale entries are
+      # detected via ETag verification with a Last-Modified fallback and purged with
+      # HTTP `503` to trigger client retries.
+      requiresVersioning: false
+      proxyPass: https://$upstream_host
+      proxyAuthPass: https://$upstream_host
+      writeThrough:
+        enabled: false
+        enableHttpChunkedUploads: false
+      allowHttp2Clients: true
+      # Reuses persistent TCP connections to upstream registries. When enabled, peer
+      # Host and TLS SNI are derived dynamically from the captured upstream host.
+      enableUpstreamKeepalive: false
+      # Lists allowed upstream registries. An upstream's own `cacheableUri` further
+      # limits caching, so both rules must allow a URI. `contentRewrite` overrides
+      # in-response URLs for indices that redirect to external CDNs (such as pip
+      # simple-indices linking to `files.pythonhosted.org`). Rewriting keeps downloads
+      # within the cluster cache when clients use the suffixed address (`suffix` or
+      # `any`), but is redundant in `direct` mode.
+      upstreams: []
+      # Example configurations (replace `upstreams: []` with these if caching):
+      #   - name: npm
+      #     hosts: [registry.npmjs.org]
+      #   - name: conan
+      #     hosts: [center2.conan.io]
+      #   - name: pip
+      #     hosts: [pypi.org, files.pythonhosted.org]
+      #     # Needed when clients use the suffixed address (`matching: suffix` or `any`):
+      #     contentRewrite:
+      #       - uriStartsWith: /simple/
+      #         types:
+      #           - application/vnd.pypi.simple.v1+json
+      #           - text/html
+      #         substitute:
+      #           match: "https://files.pythonhosted.org"
+      #           replace: "http://files.pythonhosted.org.<release-namespace>.svc.cluster.local:14128"
+    azure:
+      include: true
+      allowCacheReset: false
+      # maxIdleTime: 10m
+      # When true (default for cloud storage), requests without an If-Match header bypass the cache.
+      requiresVersioning: true
+      serverName: ~^(?<container_name>[^\.]+)\.blob\.core\.windows\.net$
+      proxyCacheName: az
+      proxyPass: $scheme://$host
+      proxyAuthPass: $scheme://$host
+      writeThrough:
+        enabled: false
+        enableHttpChunkedUploads: false
+        # Reassembles a multi-part block-blob upload into the full object before
+        # caching, so an object uploaded as blocks is still a HIT on a later
+        # download. Pair with `requiresVersioning: false` on this backend.
+        assembleBlockUploads: false
+      burstyCache:
+        ttlSec: 300
+        rules:
+          - name: "azure-list-operations"
+            method: "GET"
+            uriStartsWith: "/?comp=list"
+          - name: "azure-head-operations"
+            method: "HEAD"
+            uriStartsWith: "/"
+      allowHttp2Clients: true
+      enableUpstreamKeepalive: false
+    s3:
+      include: true
+      allowCacheReset: false
+      # When true (default for cloud storage), requests without an If-Match header bypass the cache.
+      requiresVersioning: true
+      serverName: ~^[^.]+\.s3\.[^.]+\.amazonaws\.com$
+      proxyCacheName: s3
+      proxyPass: $scheme://$host
+      proxyAuthPass: $scheme://$host
+      writeThrough:
+        enabled: false
+        enableHttpChunkedUploads: false
+      burstyCache:
+        ttlSec: 300
+        rules:
+          - name: "s3-list-operations"
+            method: "GET"
+            uriStartsWith: "/?list-type="
+          - name: "s3-head-operations"
+            method: "HEAD"
+            uriStartsWith: "/"
+      allowHttp2Clients: true
+      enableUpstreamKeepalive: true
+    gcs:
+      include: true
+      allowCacheReset: false
+      # When true (default for cloud storage), requests without an If-Match header bypass the cache.
+      requiresVersioning: true
+      # Matches GCS S3-compatible XML API endpoints:
+      # - storage.googleapis.com (path-style)
+      # - <bucket>.storage.googleapis.com (virtual-hosted style)
+      serverName: ~^([^.]+\.)?storage\.googleapis\.com$
+      proxyCacheName: gcs
+      # GCS only supports HTTPS.
+      proxyPass: https://$host
+      proxyAuthPass: https://$host
+      writeThrough:
+        enabled: false
+        enableHttpChunkedUploads: false
+      burstyCache:
+        ttlSec: 300
+        rules:
+          - name: "gcs-list-operations"
+            method: "GET"
+            uriStartsWith: "/?list-type="
+          - name: "gcs-head-operations"
+            method: "HEAD"
+            uriStartsWith: "/"
+      allowHttp2Clients: true
+      enableUpstreamKeepalive: true
+    nucleus:
+      include: true
+      allowCacheReset: true
+      # Default server - catches any hostname not matched by other servers.
+      serverName: _
+      proxyCacheName: nucleus
+      proxyPass: $scheme://$host
+      proxyAuthPass: null
+      allowHttp2Clients: false
+      enableUpstreamKeepalive: false
+      # Optional DNS resolver override for Nucleus Bridge connectivity.
+      # Left null, the cluster default resolver (CoreDNS) is used; the nucleus
+      # rewrites are installed there by the coredns-overrides addon.
+      bridgeResolver: null
+    passthrough:
+      allowCacheReset: false
+      # Required to allow non-backend requests to reach out on given scheme and ports.
+      proxyPass: $scheme://$http_host
+      allowHttp2Clients: true
+  lua:
+    # Lua scripts are always loaded from ConfigMap for hot-reload without container rebuild.
+    # Maps keys in the configmap to file names that will be placed in `/etc/nginx/conf.d/lua-runtime/`
+    files: [lua-access.lua, lua-azure-response-overrides.lua, lua-balancer.lua, lua-lock.lua, lua-metrics.lua, lua-generation.lua, lua-presigned.lua, lua-cache-key.lua, lua-mutation.lua, lua-http-chunked-reader.lua, lua-body-reader.lua, lua-block-list.lua, lua-write-through.lua, lua-staging-serve.lua]
+    # When true, disables Lua code cache for live reload on every request (dev/debug only).
+    debug: false
+
+# Resource requests and limits (define later for specific environments)
+resources: {}
+  # limits:
+  #   cpu: 2000m
+  #   memory: 4Gi
+  # requests:
+  #   cpu: 1000m
+  #   memory: 2Gi
+
+# Seconds Kubernetes lets a stopping pod finish in-flight requests before it kills the pod.
+terminationGracePeriodSeconds: 30
+
+# Node selection, tolerations, affinity (define later if needed)
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Configuration options related to how Container Cache Metrics are configured.
+metrics:
+  # Creates a configmap entry that will contain the json for the OVCC grafana dashboard.
+  # Useful in cases where `kube-prometheus-stack` is used for monitoring.
+  dashboard:
+    # When true the configmap value will be created.
+    include: false
+    # Allows the configmap to be placed in a different namespace.
+    namespace:
+      override: false
+      value: "default"
+    # Addtional labels for the configmap for the operator to pick up.
+    labels:
+      label: false
+  # Size for storing cache metrics in memory.
+  cacheMetricsStorageSize: 128m
+  # Configure the histogram buckets used for metrics.
+  # Must be a comma-separated list of positive integers.
+  buckets:
+    byte: 1000,2000,4000,8000,16000,32000,64000,128000,256000,1048576, 10485760, 104857600, 1000000000, 10000000000, 100000000000
+    time: 0.001, 0.002, 0.003, 0.005, 0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 10
+
+  prometheus:
+    # Enables a ServiceMonitor and Service to export prometheus metrics
+    enabled: true
+    port: 9145
+    serviceMonitor:
+      enabled: false
+      interval: 5s
+      path: /cache_metrics
+      port: cache-metrics
+      scheme: http
+      scrapeTimeout: 5s
+    podMonitoring:
+      # GKE-native metric collection via Google Cloud Managed Service for Prometheus.
+      # Uses the PodMonitoring CRD (monitoring.googleapis.com/v1) instead of ServiceMonitor.
+      # Requires GKE with managed collection enabled (default on new clusters).
+      enabled: false
+
+otel:
+  # Enable or disable import of otel module and collection off otel events.
+  enabled: false
+  # Additional headers to include in otel export.
+  headers:
+    #- header: X-API-Token
+    #  value: "my-token-value"
+  # interval (in seconds) in which to report buffered batches of OTEL events.
+  interval: 5
+  # The number of items in a batch.
+  batchSize: 512
+  # The number of batches to collect. If the buffer runs out of space, new events
+  # are discarded
+  batchCount: 4
+  # The collector to send the otel events to.
+  endpoint: localhost:4317
+  # See `otel_trace_context` in https://nginx.org/en/docs/ngx_otel_module.html
+  context: propagate
+  # Settings for collection of a ratio of all events.
+  ratio:
+    # When true a portion of all events are collected.
+    enabled: false
+    # The index on which to ratio.
+    source: otel_trace_id
+    # The percent of total requests to report.
+    percent: 10
+  # Controls an OpenTelemetry collector/operator deployment that can be used to
+  # deploy sidcars in each pod. This sidecar will collect the metrics from the running service
+  # and sends them to another OTEL collector.
+  #
+  # If enabled, this option will disable the ServiceMonitor.
+  collector:
+    # When enabled `endpoint` must be `localhost:4317`.
+    enabled: false
+    batch:
+    export:
+      otlp:
+        # Set this to the correct location of the collector in your cluster.
+        endpoint: otel-collector.svc.svc.cluster.local:4317
+        tls:
+          insecure: true

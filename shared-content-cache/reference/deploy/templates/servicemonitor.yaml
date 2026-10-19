@@ -1,0 +1,36 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{- if and $.Values.metrics.prometheus.enabled $.Values.metrics.prometheus.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "chart.fullname" . }}
+{{- if $.Values.metrics.prometheus.serviceMonitor.labels }}
+  labels:
+    {{- toYaml $.Values.metrics.prometheus.serviceMonitor.labels | nindent 4 }}
+{{- end }}
+spec:
+  targetLabels:
+    {{- if and $.Values.global $.Values.global.additionalLabels }}
+    {{- range $key, $val := $.Values.global.additionalLabels }}
+    - {{ $key }}
+    {{- end }}
+    {{- end }}
+  namespaceSelector:
+    matchNames:
+    - {{ $.Release.Namespace | quote }}
+  endpoints:
+  - interval: {{ $.Values.metrics.prometheus.serviceMonitor.interval }}
+    path: {{ $.Values.metrics.prometheus.serviceMonitor.path }}
+    port: {{ $.Values.metrics.prometheus.serviceMonitor.port }}
+    scheme: {{ $.Values.metrics.prometheus.serviceMonitor.scheme }}
+    scrapeTimeout: {{ $.Values.metrics.prometheus.serviceMonitor.scrapeTimeout }}
+  selector:
+    matchLabels:
+      metrics: 'true'
+{{- if and $.Values.metrics.prometheus.serviceMonitor.spec $.Values.metrics.prometheus.serviceMonitor.spec.jobLabel }}
+  jobLabel: {{ $.Values.metrics.prometheus.serviceMonitor.spec.jobLabel }}
+{{- end }}
+{{- end }}

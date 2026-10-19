@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "ovcc-telemetry"
+description = "OVCC telemetry: OTel-native structured logging + tracing init (tracing facade, JSON stdout, env-gated OTLP), span helpers, and the flat access-log event."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+bytes.workspace = true
+http-body-util.workspace = true
+hyper-rustls = { workspace = true, features = ["http1"] }
+hyper-util = { workspace = true, features = ["client", "client-legacy", "http1", "tokio"] }
+opentelemetry = { workspace = true, features = ["trace", "metrics"] }
+opentelemetry-http.workspace = true
+# Export rides the proxy's hyper-rustls stack through `otlp_client` instead of
+# the crate's default reqwest client.
+opentelemetry-otlp = { workspace = true, features = ["http-proto", "trace", "metrics"] }
+opentelemetry-semantic-conventions = { workspace = true, features = ["semconv_experimental"] }
+opentelemetry_sdk = { workspace = true, features = ["trace", "metrics"] }
+ovcc-core = { version = "0.1.0", path = "../ovcc-core" }
+rustls.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+time = { workspace = true, features = ["formatting", "macros", "parsing"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "time"] }
+tracing.workspace = true
+tracing-opentelemetry.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
+webpki-roots.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+futures-executor.workspace = true
+rcgen.workspace = true
+tokio = { workspace = true, features = ["io-util", "net"] }
+tokio-rustls.workspace = true
+# The in-memory metric reader (`InMemoryMetricExporter`) the metrics tests assert
+# against lives behind the SDK's `testing` feature.
+opentelemetry_sdk = { workspace = true, features = ["trace", "metrics", "testing"] }
+
+[[bench]]
+name = "telemetry"
+harness = false

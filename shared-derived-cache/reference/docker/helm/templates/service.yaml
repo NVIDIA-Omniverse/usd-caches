@@ -1,0 +1,77 @@
+{{/*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/}}
+{{- if .Values.service.loadBalancer }}
+{{- range $v := until ($.Values.replicas | int) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ovdc.fullname" $ }}-{{ $v }}
+  labels:
+    {{- include "ovdc.labels" $ | nindent 4 }}
+    {{- with $.Values.global.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if (not (empty $.Values.service.annotations)) }}
+  annotations:
+    {{- include "tplvalues.render" ( dict "value" $.Values.service.annotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+{{- if (not (empty $.Values.service.loadBalancerIP)) }}
+  loadBalancerIP: {{ $.Values.service.loadBalancerIP }}
+{{- end }}
+  ports:
+    - port: {{ include "ovdc.grpcPort" $ }}
+      targetPort: ovdc-grpc
+      protocol: TCP
+      name: ovdc
+  selector:
+    {{- include "ovdc.selectorLabels" $ | nindent 4 }}
+    {{- /* Pods are named after the StatefulSet, which uses fullname, not name. */}}
+    statefulset.kubernetes.io/pod-name: {{ include "ovdc.fullname" $ }}-{{ $v }}
+{{- if (not (empty $.Values.service.loadBalancerSourceRanges)) }}
+  loadBalancerSourceRanges:
+{{- toYaml $.Values.service.loadBalancerSourceRanges | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ovdc.fullname" . }}
+  labels:
+    {{- include "ovdc.labels" . | nindent 4 }}
+    {{- with .Values.global.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if or (not (empty $.Values.service.annotations)) .Values.prometheusAnnotation }}
+  annotations:
+    {{- if (not (empty $.Values.service.annotations)) }}
+    {{- include "tplvalues.render" ( dict "value" $.Values.service.annotations "context" $ ) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.prometheusAnnotation }}
+    prometheus.io/scrape: "true"
+    prometheus.io/path: {{ .Values.monitoring.path }}
+    prometheus.io/port: {{ include "ovdc.metricsPort" . | quote }}
+    prometheus.io/scheme: {{ .Values.monitoring.scheme }}
+    {{- end }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: {{ include "ovdc.grpcPort" . }}
+      targetPort: ovdc-grpc
+      protocol: TCP
+      name: ovdc
+    - port: {{ include "ovdc.metricsPort" . }}
+      targetPort: http-metrics
+      protocol: TCP
+      name: http-metrics
+  selector:
+    {{- include "ovdc.selectorLabels" . | nindent 4 }}

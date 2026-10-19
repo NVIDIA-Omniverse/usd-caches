@@ -1,0 +1,180 @@
+{{- /*
+SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+*/ -}}
+{{- /*
+Renders the private Rust engine runtime configuration from the canonical chart
+values. OpenResty does not read /etc/ovcc/values.yaml, so this ConfigMap is inert
+until an operator performs the image-only engine switch.
+*/ -}}
+{{- include "chart.guardServiceLinkPrefix" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chart.compatFullname" . }}-config
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+data:
+  values.yaml: |
+    nginx:
+      resolver:
+{{ toYaml .Values.nginx.resolver | indent 8 }}
+      upstreamBalancer:
+{{ toYaml .Values.nginx.upstreamBalancer | indent 8 }}
+      writeThrough:
+        # Omits the unused loopback seed port and metadata dictionary sizing; the engine
+        # stages in-process and ignores those keys even when present.
+        requestBodyChunkSize: {{ .Values.nginx.writeThrough.requestBodyChunkSize }}
+        stagingSubdir: {{ .Values.nginx.writeThrough.stagingSubdir | quote }}
+        stagingTokenTtlSeconds: {{ .Values.nginx.writeThrough.stagingTokenTtlSeconds }}
+      proxyCache:
+        lockAge: {{ .Values.nginx.proxyCache.lockAge | quote }}
+        lockTimeout: {{ .Values.nginx.proxyCache.lockTimeout | quote }}
+        validity:
+          {{- toYaml .Values.nginx.proxyCache.validity | nindent 10 }}
+        paths:
+          {{- range .Values.nginx.proxyCache.paths }}
+          - name: {{ .name | quote }}
+            maxIdleTime: {{ default "1d" .maxIdleTime | quote }}
+            peerCopyMaxIdleTime: {{ default "4h" .peerCopyMaxIdleTime | quote }}
+            {{- with .maxSizeGi }}
+            maxSizeGi: {{ . }}
+            {{- end }}
+            {{- $cacheName := .name | toString }}
+            {{- range $.Values.persistence.volumes }}
+            {{- if eq (.name | toString) $cacheName }}
+            minFreeBytes: {{ mul (int (include "func.cacheMinFreeGi" (dict "root" $ "volume" .))) 1073741824 }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+      backends:
+        {{- range $name, $backend := .Values.nginx.backends }}
+        {{- if and (kindIs "map" $backend) (hasKey $backend "include") $backend.include }}
+        {{ $name }}:
+          enabled: true
+          host: {{ get $backend "host" | default (get $backend "serverName") | default "" | quote }}
+          # OpenResty proxyPass expressions are chart implementation details.
+          # An empty value makes the engine use its canonical host dispatcher.
+          upstream: {{ get $backend "upstream" | default "" | quote }}
+          requiresVersioning: {{ include "func.backendRequiresVersioning" $backend }}
+          proxyCacheName: {{ $backend.proxyCacheName | quote }}
+          cacheRoot: {{ include "func.engineBackendCacheRoot" (dict "root" $ "cacheName" $backend.proxyCacheName) | quote }}
+          {{- if hasKey $backend "maxIdleTime" }}
+          maxIdleTime: {{ $backend.maxIdleTime | quote }}
+          {{- end }}
+          {{- if hasKey $backend "enableUpstreamKeepalive" }}
+          enableUpstreamKeepalive: {{ $backend.enableUpstreamKeepalive }}
+          {{- end }}
+          {{- if hasKey $backend "allowCacheReset" }}
+          allowCacheReset: {{ $backend.allowCacheReset }}
+          {{- end }}
+          {{- if hasKey $backend "bridgeResolver" }}
+          bridgeResolver: {{ $backend.bridgeResolver | quote }}
+          {{- end }}
+          {{- if hasKey $backend "cacheableUri" }}
+          cacheableUri: {{ $backend.cacheableUri | toJson }}
+          {{- end }}
+          {{- with $backend.writeThrough }}
+          writeThrough:
+            enabled: {{ .enabled }}
+            enableHttpChunkedUploads: {{ .enableHttpChunkedUploads }}
+            {{- if hasKey . "assembleBlockUploads" }}
+            assembleBlockUploads: {{ .assembleBlockUploads }}
+            {{- end }}
+          {{- end }}
+          {{- if and $.Values.featureFlags.enableBurstyCache $backend.burstyCache $backend.burstyCache.rules }}
+          burstyCache:
+            ttlSec: {{ $backend.burstyCache.ttlSec }}
+            rules:
+            {{- range $backend.burstyCache.rules }}
+              - method: {{ .method | quote }}
+                uriStartsWith: {{ .uriStartsWith | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $backend.upstreams }}
+          matching: {{ $backend.matching | default "any" | quote }}
+          suffix: {{ include "func.registryCacheSuffix" $ | quote }}
+          upstreams:
+          {{- range $backend.upstreams }}
+            - name: {{ .name | quote }}
+              hosts:
+              {{- range .hosts }}
+                - {{ . | quote }}
+              {{- end }}
+              {{- if hasKey . "cacheableUri" }}
+              cacheableUri: {{ .cacheableUri | toJson }}
+              {{- end }}
+              {{- if .contentRewrite }}
+              contentRewrite:
+              {{- range .contentRewrite }}
+                - uriStartsWith: {{ .uriStartsWith | quote }}
+                  types:
+                  {{- range .types }}
+                    - {{ . | quote }}
+                  {{- end }}
+                  substitute:
+                    match: {{ .substitute.match | quote }}
+                    replace: {{ tpl .substitute.replace $ | quote }}
+              {{- end }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+    tls:
+      enabled: {{ .Values.tls.enabled }}
+      sslProtocols: {{ .Values.tls.sslProtocols | quote }}
+      certificatePath: "/etc/nginx/ssl/tls.crt"
+      privateKeyPath: "/etc/nginx/ssl/tls.key"
+      {{- if .Values.peer.enabled }}
+      caCertificatePath: "/etc/nginx/ssl/ca.crt"
+      {{- end }}
+      autoReloadSecret: {{ .Values.tls.autoReloadSecret }}
+    cache:
+      # Required by the current single-store schema. Per-backend cacheRoot is
+      # the future multi-store contract and always points at an isolated tree.
+      root: {{ include "func.engineCacheRoot" . | quote }}
+    service:
+      address: "0.0.0.0"
+      port: {{ .Values.service.cache.containerPort }}
+      {{- if and (hasKey .Values.nginx.backends "nucleus") (kindIs "map" .Values.nginx.backends.nucleus) .Values.nginx.backends.nucleus.include }}
+      nucleus_port: {{ .Values.service.nucleus.containerPort }}
+      {{- end }}
+      {{- if .Values.peer.enabled }}
+      peer_port: {{ .Values.service.peer.containerPort }}
+      {{- end }}
+      health_port: 13129
+      metrics_port: 9145
+      {{- if .Values.nginx.selfServer.enabled }}
+      self_names:
+        {{- $fullname := include "chart.compatFullname" . }}
+        - {{ $fullname | quote }}
+        - {{ printf "%s.%s" $fullname .Release.Namespace | quote }}
+        - {{ printf "%s.%s.svc" $fullname .Release.Namespace | quote }}
+        - {{ printf "%s.%s.svc.cluster.local" $fullname .Release.Namespace | quote }}
+        {{- range .Values.nginx.selfServer.extraNames }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- else }}
+      self_names: []
+      {{- end }}
+    {{- if .Values.peer.enabled }}
+    peer:
+      enabled: {{ .Values.peer.enabled }}
+      replicate: {{ .Values.peer.replicate }}
+      discovery:
+        dns: {{ printf "%s-headless.%s.svc.cluster.local" (include "chart.compatFullname" .) .Release.Namespace | quote }}
+      expectedServerName: {{ printf "%s.%s.svc.cluster.local" (include "chart.compatFullname" .) .Release.Namespace | quote }}
+      budgetMs: {{ .Values.peer.budgetMs }}
+      refreshSecs: {{ .Values.peer.refreshSecs }}
+      minObjectBytes: {{ int .Values.peer.minObjectBytes }}
+    {{- end }}
+    telemetry:
+      metricPrefix: {{ include "func.metricPrefix" . | quote }}
+    compat:
+      useUccDefaults: {{ .Values.compat.useUccDefaults }}
+      emitLegacyCacheReset: {{ .Values.compat.emitLegacyCacheReset }}
+      cacheResetPath: {{ include "func.cacheResetPath" . | quote }}
+      instanceHeader: {{ include "func.instanceHeader" . | quote }}
+      legacyCacheResetPath: {{ include "func.legacyCacheResetPath" . | quote }}
+      legacyInstanceHeader: {{ include "func.legacyInstanceHeader" . | quote }}

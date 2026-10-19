@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[workspace]
+members = ["hub-cache", "hub-client", "hub-rpc", "hub-util", "hub"]
+resolver = "2"
+
+[workspace.package]
+description = "NVIDIA Omniverse Hub"
+edition = "2021"
+homepage = "https://github.com/NVIDIA-dev/usd-caches/tree/main/workstation/reference"
+keywords = ["omniverse", "hub", "cache"]
+repository = "https://github.com/NVIDIA-dev/usd-caches/tree/main/workstation/reference"
+rust-version = "1.80.0"
+
+[profile.dev]
+opt-level = 1 # O0 is painfully slow
+strip = "none"
+
+[profile.release]
+lto = true
+strip = "debuginfo"

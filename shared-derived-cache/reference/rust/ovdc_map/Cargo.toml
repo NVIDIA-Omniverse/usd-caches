@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+license = "Apache-2.0"
+name = "ovdc_map"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rocksdb.workspace = true
+
+ovdc_sharded_map = { path = "../ovdc_sharded_map" }
+ovdc_bytes = { path = "../ovdc_bytes" }
+ovdc_trace = { path = "../ovdc_trace" }
+ovdc_settings = { path = "../ovdc_settings" }
+
+hashbrown.workspace = true
+bytes.workspace = true
+smallvec.workspace = true
+rand.workspace = true
+pastey.workspace = true
+serde.workspace = true
+rkyv.workspace = true
+tokio.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+toml_edit.workspace = true
+
+[build-dependencies]
+rocksdb.workspace = true

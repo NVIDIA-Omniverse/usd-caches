@@ -1,0 +1,11 @@
+--2024-07-31 16:26:11--  https://raw.githubusercontent.com/udoprog/relative-path/main/LICENSE-MIT
+Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.111.133, 185.199.110.133, 185.199.109.133, ...
+Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.111.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1071 (1.0K) [text/plain]
+Saving to: ‘LICENSE-MIT’
+
+     0K .                                                     100% 49.5M=0s
+
+2024-07-31 16:26:12 (49.5 MB/s) - ‘LICENSE-MIT’ saved [1071/1071]
+
