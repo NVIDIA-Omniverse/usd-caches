@@ -56,5 +56,4 @@ Only edit when asked. When you do:
 - For the content cache, `shared-content-cache/reference/deploy/values.yaml` is the only supported configuration interface. Don't edit its templates, Lua, or backend files to change behavior.
 - Keep the skill references in sync with source changes they describe, and keep links between READMEs, skills, and docs valid.
 - Record component versions as plain `MAJOR.MINOR.PATCH` semver (Hub 2.4.0), never with prerelease or build suffixes such as `-rc.1`, `-beta.4`, or `+<sha>`.
-- Put agent and skill evaluations (prompts, rubrics, transcripts, results) in an `evals/` directory, at the root or inside a skill. The public mirror never publishes `evals/` or `.github/`, so don't link to them from published files.
 - Preserve license headers and attribution.
